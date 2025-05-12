@@ -38,7 +38,7 @@ if "Review_text" in df.columns:
     def generate_feedback_response(sentiment, review):
         prompt = f"Generate a customer support response to the following review: {review} Sentiment: {sentiment}"
         response = openai.Completion.create(
-            engine="gpt-4",  # Suitable model for response generation
+            engine="gpt-3.5-turbo",  # Suitable model for response generation
             prompt=prompt,
             max_tokens=100,
             temperature=0.7
