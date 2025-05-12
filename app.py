@@ -22,33 +22,33 @@ else:
 # Ensure 'Review_text' exists
 if "Review_text" in df.columns:
 
-    # Sentiment analysis function using TextBlob or GPT (as per previous integration)
+    # Sentiment analysis function using GPT (ChatCompletion)
     def get_sentiment_from_gpt(text):
         prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
-        response = openai.Completion.create(
-            engine="gpt-3.5-turbo",  # Use a suitable model
-            prompt=prompt,
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that classifies sentiment."},
+                {"role": "user", "content": prompt}
+            ],
             max_tokens=10,
-            temperature=0.0  # Ensure deterministic results
+            temperature=0.0
         )
-        sentiment = response.choices[0].text.strip()
+        sentiment = response.choices[0].message["content"].strip()
         return sentiment
 
-def generate_feedback_response(sentiment, review):
-    prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
-    
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are a helpful customer support assistant."},
-            {"role": "user", "content": prompt}
-        ],
-        max_tokens=100,
-        temperature=0.7
-    )
-    
-    return response.choices[0].message["content"].strip()
-
+    def generate_feedback_response(sentiment, review):
+        prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
+        response = openai.ChatCompletion.create(
+            model="gpt-4",
+            messages=[
+                {"role": "system", "content": "You are a helpful customer support assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=100,
+            temperature=0.7
+        )
+        return response.choices[0].message["content"].strip()
 
     # Apply sentiment analysis
     df["Sentiment"] = df["Review_text"].apply(get_sentiment_from_gpt)
