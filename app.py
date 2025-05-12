@@ -5,7 +5,7 @@ from textblob import TextBlob
 import plotly.express as px
 
 # Initialize OpenAI API key
-openai.api_key = "your_openai_api_key"
+openai.api_key = st.secrets["openai"]["api_key"]
 
 st.title("📊 Sentiment Analysis on Reviews")
 
