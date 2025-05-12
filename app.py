@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-from openai import OpenAI
+import openai
+from textblob import TextBlob
 import plotly.express as px
 
-# Initialize OpenAI client
-client = OpenAI(api_key=st.secrets["openai"]["api_key"])
+# Initialize OpenAI API key
+openai.api_key = st.secrets["openai"]["api_key"]
 
 st.title("📊 Sentiment Analysis on Reviews")
 
@@ -21,23 +22,22 @@ else:
 # Ensure 'Review_text' exists
 if "Review_text" in df.columns:
 
+    # Sentiment analysis function using TextBlob or GPT (as per previous integration)
     def get_sentiment_from_gpt(text):
         prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that classifies sentiment."},
-                {"role": "user", "content": prompt}
-            ],
+        response = openai.Completion.create(
+            engine="gpt-3.5-turbo",  # Use a suitable model
+            prompt=prompt,
             max_tokens=10,
-            temperature=0.0
+            temperature=0.0  # Ensure deterministic results
         )
-        sentiment = response.choices[0].message.content.strip()
+        sentiment = response.choices[0].text.strip()
         return sentiment
 
     def generate_feedback_response(sentiment, review):
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
-        response = client.chat.completions.create(
+
+        response = openai.ChatCompletion.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful customer support assistant."},
@@ -46,7 +46,8 @@ if "Review_text" in df.columns:
             max_tokens=100,
             temperature=0.7
         )
-        return response.choices[0].message.content.strip()
+
+        return response.choices[0].message["content"].strip()
 
     # Apply sentiment analysis
     df["Sentiment"] = df["Review_text"].apply(get_sentiment_from_gpt)
