@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import openai
@@ -26,28 +27,25 @@ if "Review_text" in df.columns:
     def get_sentiment_from_gpt(text):
         prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
         response = openai.Completion.create(
-            engine="gpt-3.5-turbo",  # Use a suitable model
+            model="gpt-3.5-turbo",  # Use a suitable model
             prompt=prompt,
             max_tokens=10,
             temperature=0.0  # Ensure deterministic results
         )
-        sentiment = response.choices[0].text.strip()
+        sentiment = response['choices'][0]['text'].strip()
         return sentiment
 
     def generate_feedback_response(sentiment, review):
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
 
-        response = openai.ChatCompletion.create(
+        response = openai.Completion.create(
             model="gpt-4",
-            messages=[
-                {"role": "system", "content": "You are a helpful customer support assistant."},
-                {"role": "user", "content": prompt}
-            ],
+            prompt=prompt,
             max_tokens=100,
             temperature=0.7
         )
 
-        return response.choices[0].message["content"].strip()
+        return response['choices'][0]['text'].strip()
 
     # Apply sentiment analysis
     df["Sentiment"] = df["Review_text"].apply(get_sentiment_from_gpt)
