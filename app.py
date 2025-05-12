@@ -34,12 +34,11 @@ if "Review_text" in df.columns:
         sentiment = response.choices[0].text.strip()
         return sentiment
 
-    # Function to generate customer support response
-  def generate_feedback_response(sentiment, review):
+def generate_feedback_response(sentiment, review):
     prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
     
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo"
+        model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a helpful customer support assistant."},
             {"role": "user", "content": prompt}
@@ -49,6 +48,7 @@ if "Review_text" in df.columns:
     )
     
     return response.choices[0].message["content"].strip()
+
 
     # Apply sentiment analysis
     df["Sentiment"] = df["Review_text"].apply(get_sentiment_from_gpt)
