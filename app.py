@@ -2,7 +2,6 @@
 import streamlit as st
 import pandas as pd
 import openai
-from textblob import TextBlob
 import plotly.express as px
 
 # Initialize OpenAI API key
@@ -23,11 +22,11 @@ else:
 # Ensure 'Review_text' exists
 if "Review_text" in df.columns:
 
-    # Sentiment analysis function using TextBlob or GPT (as per previous integration)
+    # Sentiment analysis function using OpenAI GPT-3.5 or GPT-4 model (Completion.create)
     def get_sentiment_from_gpt(text):
         prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
         response = openai.Completion.create(
-            model="gpt-3.5-turbo",  # Use a suitable model
+            model="gpt-3.5-turbo",  # or 'gpt-4'
             prompt=prompt,
             max_tokens=10,
             temperature=0.0  # Ensure deterministic results
@@ -39,7 +38,7 @@ if "Review_text" in df.columns:
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
 
         response = openai.Completion.create(
-            model="gpt-4",
+            model="gpt-4",  # or 'gpt-3.5-turbo'
             prompt=prompt,
             max_tokens=100,
             temperature=0.7
