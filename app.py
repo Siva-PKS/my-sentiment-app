@@ -1,11 +1,10 @@
 import streamlit as st
 import pandas as pd
-import openai
-from textblob import TextBlob
+from openai import OpenAI
 import plotly.express as px
 
-# Initialize OpenAI API key
-openai.api_key = st.secrets["openai"]["api_key"]
+# Initialize OpenAI client
+client = OpenAI(api_key=st.secrets["openai"]["api_key"])
 
 st.title("📊 Sentiment Analysis on Reviews")
 
@@ -22,10 +21,9 @@ else:
 # Ensure 'Review_text' exists
 if "Review_text" in df.columns:
 
-    # Sentiment analysis function using GPT (ChatCompletion)
     def get_sentiment_from_gpt(text):
         prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that classifies sentiment."},
@@ -34,12 +32,12 @@ if "Review_text" in df.columns:
             max_tokens=10,
             temperature=0.0
         )
-        sentiment = response.choices[0].message["content"].strip()
+        sentiment = response.choices[0].message.content.strip()
         return sentiment
 
     def generate_feedback_response(sentiment, review):
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
-        response = openai.ChatCompletion.create(
+        response = client.chat.completions.create(
             model="gpt-4",
             messages=[
                 {"role": "system", "content": "You are a helpful customer support assistant."},
@@ -48,7 +46,7 @@ if "Review_text" in df.columns:
             max_tokens=100,
             temperature=0.7
         )
-        return response.choices[0].message["content"].strip()
+        return response.choices[0].message.content.strip()
 
     # Apply sentiment analysis
     df["Sentiment"] = df["Review_text"].apply(get_sentiment_from_gpt)
