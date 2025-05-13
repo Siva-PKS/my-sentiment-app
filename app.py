@@ -2,14 +2,15 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
 from tqdm import tqdm
 
 # Set up the page
 st.set_page_config(page_title="Sentiment & Response Generator", layout="wide")
-st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
+st.title("\U0001F4CA Customer Review Sentiment Analyzer & Auto-Responder")
 
 # File Upload Section
-uploaded_file = st.file_uploader("📁 Upload a CSV file with a column named 'Review_text'", type="csv")
+uploaded_file = st.file_uploader("\U0001F4C1 Upload a CSV file with a column named 'Review_text'", type="csv")
 
 # Read CSV and validate content
 if uploaded_file is not None:
@@ -30,10 +31,17 @@ else:
         st.error(f"❌ Failed to load sample CSV: {e}")
         st.stop()
 
-# Limit the number of rows to 100 for faster processing
-row_limit = 100
-df = df.head(row_limit)
-st.info(f"⚡ Limiting to first {len(df)} rows for faster demo processing.")
+# Limit rows for demo
+MAX_ROWS = 100
+if len(df) > MAX_ROWS:
+    st.warning(f"⚠️ Limiting processing to the first {MAX_ROWS} reviews for faster demo performance.")
+    df = df.head(MAX_ROWS)
+
+# Filter out short or invalid reviews
+def is_valid_review(review):
+    return isinstance(review, str) and len(review.strip()) > 10
+
+df = df[df["Review_text"].apply(is_valid_review)]
 
 # Load Sentiment Model (English-only)
 @st.cache_resource
@@ -42,7 +50,7 @@ def load_sentiment_model():
 
 sentiment_pipeline = load_sentiment_model()
 
-# Load Response Generation Model
+# Load Response Generation Model (small for performance)
 @st.cache_resource
 def load_response_model():
     tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
@@ -51,14 +59,14 @@ def load_response_model():
 
 response_tokenizer, response_model = load_response_model()
 
-# Label mapping for sentiment
+# Map sentiment labels
 label_map = {
     "LABEL_0": "Negative",
     "LABEL_1": "Neutral",
     "LABEL_2": "Positive"
 }
 
-# Helper: Run sentiment analysis
+# Run sentiment analysis
 def analyze_sentiment(text):
     try:
         result = sentiment_pipeline(str(text).strip()[:512])[0]
@@ -66,50 +74,46 @@ def analyze_sentiment(text):
     except Exception:
         return "Unknown"
 
-# Helper: Generate a professional customer support response
+# Generate meaningful response for negative sentiment
+
 def generate_response(sentiment, review):
-    prompt = f"""You're a helpful support agent. Generate a professional response for the customer review below.
+    prompt = f"""
+You are a customer support agent. A customer left the following {sentiment.lower()} review. Write a short, empathetic, and helpful response.
 
-Review: \"{review}\"
-Sentiment: {sentiment}
-Response:"""
+Customer Review: \"{review}\"
+
+Support Agent Response:"""
     inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output = response_model.generate(**inputs, max_new_tokens=100)
-    return response_tokenizer.decode(output[0], skip_special_tokens=True)
+    output = response_model.generate(**inputs, max_new_tokens=120)
+    return response_tokenizer.decode(output[0], skip_special_tokens=True).strip()
 
-# Conditional response generator
-def generate_response_if_needed(sentiment, review):
-    if sentiment == "Negative":
-        return generate_response(sentiment, review)
-    else:
-        return "No response needed"
-
-# Initialize lists and progress bar
-sentiments = []
+# Generate response only for Negative
 responses = []
+sentiments = []
 progress_bar = st.progress(0)
 
-# Process each row
-with st.spinner("🚀 Running sentiment analysis and generating responses..."):
-    for i, row in tqdm(df.iterrows(), total=len(df), desc="Processing"):
-        sentiment = analyze_sentiment(row['Review_text'])
-        response = generate_response_if_needed(sentiment, row['Review_text'])
-        sentiments.append(sentiment)
-        responses.append(response)
-        progress_bar.progress((i + 1) / len(df))
+for i, row in enumerate(df.itertuples(index=False)):
+    sentiment = analyze_sentiment(row.Review_text)
+    sentiments.append(sentiment)
+    if sentiment == "Negative":
+        response = generate_response(sentiment, row.Review_text)
+    else:
+        response = "No response needed"
+    responses.append(response)
+    progress_bar.progress((i + 1) / len(df))
 
-# Add to DataFrame
+# Add results to DataFrame
 df["Sentiment"] = sentiments
 df["Response"] = responses
 
 st.success("✅ Processing complete!")
 
 # Show results
-st.subheader("📋 Results Preview")
+st.subheader("\U0001F4CB Results Preview")
 st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
 # Chart: Sentiment distribution
-st.subheader("📊 Sentiment Breakdown")
+st.subheader("\U0001F4CA Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
 
@@ -124,4 +128,4 @@ st.download_button(
     data=df.to_csv(index=False).encode("utf-8"),
     file_name="sentiment_responses.csv",
     mime="text/csv"
-)
+) 
