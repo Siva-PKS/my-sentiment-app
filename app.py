@@ -124,26 +124,32 @@ def generate_response(sentiment, review):
     # Return formatted response
     return f"Thank you for your review. We will look into the issue. {llm_reply}"
 
-# Show progress bar
-progress_bar = st.progress(0)
-sentiments = []
-responses = []
+# ✅ Only run processing if not already done
+if not st.session_state.get("processed", False):
+    sentiments = []
+    responses = []
 
-# Iterate over the DataFrame to process reviews
-for i, row in enumerate(df.itertuples(index=False)):
-    sentiment = analyze_sentiment(row.Review_text)
-    if sentiment == "Negative":
-        response = generate_response(sentiment, row.Review_text)
-    else:
-        response = "No response needed."
-    sentiments.append(sentiment)
-    responses.append(response)
-    progress_bar.progress((i + 1) / len(df))
+    # Show progress bar
+    progress_bar = st.progress(0)
 
-# Add the generated sentiment and response to the dataframe
-df["Sentiment"] = sentiments
-df["Response"] = responses
-st.session_state.df_processed = df.copy()
+    for i, row in enumerate(df.itertuples(index=False)):
+        sentiment = analyze_sentiment(row.Review_text)
+        if sentiment == "Negative":
+            response = generate_response(sentiment, row.Review_text)
+        else:
+            response = "No response needed."
+        sentiments.append(sentiment)
+        responses.append(response)
+        progress_bar.progress((i + 1) / len(df))
+
+    # Add results to DataFrame
+    df["Sentiment"] = sentiments
+    df["Response"] = responses
+
+    # Store processed results
+    st.session_state.df_processed = df.copy()
+    st.session_state.processed = True
+
 
 # ✅ Ensure DataFrame is stored and reused
 if "df_processed" not in st.session_state:
