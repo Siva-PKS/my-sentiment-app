@@ -1,86 +1,78 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
-import torch
 
-# Streamlit page config
-st.set_page_config(page_title="Sentiment & Auto-Responder", layout="wide")
+# Set page configuration
+st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
-# Upload CSV file
-uploaded_file = st.file_uploader("📁 Upload a CSV file with a column named 'Review_text'", type="csv")
+# Upload CSV
+uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
 
-# Load file or fallback
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         if df.empty or "Review_text" not in df.columns:
-            st.error("❌ CSV must contain a non-empty 'Review_text' column.")
+            st.error("❌ Missing or empty 'Review_text' column.")
             st.stop()
-        st.success("✅ CSV uploaded and validated.")
+        st.success("✅ File uploaded successfully.")
     except Exception as e:
         st.error(f"❌ Failed to read CSV: {e}")
         st.stop()
 else:
-    try:
-        df = pd.read_csv("sample_data.csv")
-        st.info("ℹ️ Using fallback sample_data.csv")
-    except Exception as e:
-        st.error(f"❌ Failed to load fallback CSV: {e}")
-        st.stop()
+    st.stop()
 
-# Limit to 100 rows for fast demo
-if len(df) > 100:
-    st.warning("⚡ Limiting to 100 rows for faster processing in demo mode.")
-    df = df.head(100)
+# Limit rows for demo purposes
+MAX_ROWS = 100
+if len(df) > MAX_ROWS:
+    st.warning(f"⚠️ Limiting processing to first {MAX_ROWS} rows for faster performance.")
+    df = df.head(MAX_ROWS)
 
-# Load fast sentiment model
+# Load 3-class Sentiment Model
 @st.cache_resource
 def load_sentiment_model():
-    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+    return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
 
-sentiment_pipeline = load_sentiment_model()
-
-# Load fast T5 response model
+# Load LLM for response generation
 @st.cache_resource
 def load_response_model():
     tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
     model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
     return tokenizer, model
 
-response_tokenizer, response_model = load_response_model()
+sentiment_pipeline = load_sentiment_model()
+tokenizer, model = load_response_model()
 
-# Sentiment function
+# Map labels from Cardiff NLP model
+label_map = {
+    "LABEL_0": "Negative",
+    "LABEL_1": "Neutral",
+    "LABEL_2": "Positive"
+}
+
+# Analyze sentiment function
 def analyze_sentiment(text):
     try:
-        result = sentiment_pipeline(str(text).strip()[:512])[0]
-        return result["label"].capitalize()
+        result = sentiment_pipeline(text[:512])[0]
+        return label_map.get(result["label"], "Unknown")
     except:
         return "Unknown"
 
-# Response generator (only for Negative)
+# Generate response for Negative sentiment only
 def generate_response(sentiment, review):
     if sentiment != "Negative":
-        return "No response needed"
-    prompt = f"""
-    You're a professional customer support agent.
-    Write a helpful and empathetic reply for the following customer review:
+        return "No response needed."
+    prompt = f"You are a helpful support agent. Write a professional response to the following review:\nReview: {review}"
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    output = model.generate(**inputs, max_new_tokens=150)
+    return tokenizer.decode(output[0], skip_special_tokens=True)
 
-    Review: "{review}"
-    Sentiment: {sentiment}
-    Response:
-    """
-    inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output = response_model.generate(**inputs, max_new_tokens=100)
-    return response_tokenizer.decode(output[0], skip_special_tokens=True)
-
-# Add progress bar
+# Show progress bar
 progress_bar = st.progress(0)
 sentiments = []
 responses = []
-
-# Batch process with progress
 for i, row in enumerate(df.itertuples(index=False)):
     sentiment = analyze_sentiment(row.Review_text)
     response = generate_response(sentiment, row.Review_text)
@@ -92,24 +84,16 @@ df["Sentiment"] = sentiments
 df["Response"] = responses
 
 st.success("✅ Processing complete!")
-
-# Show table
-st.subheader("📋 Results Preview")
+st.subheader("📋 Preview")
 st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
-# Plot sentiment chart
+# Sentiment Distribution Chart
 st.subheader("📊 Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
 fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
-             color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"},
-             title="Sentiment Distribution")
+             color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# Download option
-st.download_button(
-    label="⬇️ Download Results as CSV",
-    data=df.to_csv(index=False).encode("utf-8"),
-    file_name="sentiment_responses.csv",
-    mime="text/csv"
-)
+# Download Button
+st.download_button("⬇️ Download CSV", df.to_csv(index=False).encode("utf-8"), "sentiment_responses.csv", "text/csv")
