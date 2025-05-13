@@ -26,7 +26,7 @@ if "Review_text" not in df.columns:
     st.stop()
 
 # Limit number of rows to process
-MAX_ROWS = 20
+MAX_ROWS = 100
 if len(df) > MAX_ROWS:
     df = df.head(MAX_ROWS)
     st.warning(f"⚠️ Limiting processing to first {MAX_ROWS} reviews for speed.")
