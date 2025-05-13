@@ -39,15 +39,15 @@ if len(df) > MAX_ROWS:
 # Load sentiment pipeline
 @st.cache_resource
 def load_sentiment_pipeline():
-    return pipeline("sentiment-analysis", model="distilbert-base-uncased-finetuned-sst-2-english")
+    return pipeline("sentiment-analysis", model="siebert/sentiment-roberta-large-english")
 
 sentiment_pipeline = load_sentiment_pipeline()
 
 # Load better response generation model (FLAN-T5-XL)
 @st.cache_resource
 def load_response_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-xl")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-xl")
     return tokenizer, model
 
 response_tokenizer, response_model = load_response_model()
