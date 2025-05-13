@@ -29,23 +29,28 @@ if "Review_text" in df.columns:
     # Load multilingual and faster text generation model
     @st.cache_resource
     def load_response_model():
-        tokenizer = AutoTokenizer.from_pretrained("google/mt5-small", use_fast=False)
-        model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-small")
+        tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+       model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
         return tokenizer, model
 
     response_tokenizer, response_model = load_response_model()
 
     # Sentiment analysis function (using multilingual model)
-    def get_sentiment(text):
-        result = sentiment_pipeline(text[:512])[0]
-        sentiment = result["label"]
-        # Map numerical labels to sentiment labels
-        if sentiment == '0':
-            return 'Negative'
-        elif sentiment == '1':
-            return 'Neutral'
+   def get_sentiment(text):
+    try:
+        if pd.isna(text):
+            return "Unknown"
+        text = str(text)[:512]
+        result = sentiment_pipeline(text)[0]
+        label = result["label"].lower()
+        if "1" in label or "2" in label:
+            return "Negative"
+        elif "3" in label:
+            return "Neutral"
         else:
-            return 'Positive'
+            return "Positive"
+    except Exception as e:
+        return "Error"
 
     # Feedback response generation (using multilingual model)
     def generate_feedback_response(sentiment, review):
