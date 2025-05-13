@@ -1,9 +1,11 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 
+# Set up the page
 st.set_page_config(page_title="Sentiment & Response Generator", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
@@ -23,14 +25,14 @@ if "Review_text" not in df.columns:
     st.error("❌ The uploaded CSV must contain a 'Review_text' column.")
     st.stop()
 
-# Load Sentiment Model (English, lightweight)
+# Load Sentiment Model (English-only)
 @st.cache_resource
 def load_sentiment_model():
-    return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
+    return pipeline("sentiment-analysis", model="distilbert-base-uncased")
 
 sentiment_pipeline = load_sentiment_model()
 
-# Load LLM for Response Generation (FLAN-T5, instruction-tuned)
+# Load LLM for Response Generation (FLAN-T5, instruction-tuned, English-only)
 @st.cache_resource
 def load_response_model():
     tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
@@ -43,7 +45,7 @@ response_tokenizer, response_model = load_response_model()
 def analyze_sentiment(text):
     try:
         result = sentiment_pipeline(str(text).strip()[:512])[0]
-        return result["label"].capitalize()
+        return result["label"].capitalize()  # Returns "POSITIVE", "NEGATIVE", or "NEUTRAL"
     except Exception as e:
         return "Unknown"
 
