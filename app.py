@@ -145,23 +145,34 @@ df["Sentiment"] = sentiments
 df["Response"] = responses
 st.session_state.df_processed = df.copy()
 
-# Mark as processed in session state
-st.session_state.processed = True
+# ✅ Ensure DataFrame is stored and reused
+if "df_processed" not in st.session_state:
+    df["Sentiment"] = sentiments
+    df["Response"] = responses
+    st.session_state.df_processed = df.copy()
+    st.session_state.processed = True
+
+# ✅ Use the stored DataFrame for display and download
 df_display = st.session_state.df_processed
 
-# Display results
+# ✅ Display results
 st.success("✅ Processing complete!")
 
 st.subheader("📋 Preview")
-st.dataframe(df_display[["Unique_ID", "Category","Review_text", "Sentiment", "Response"]], use_container_width=True)
+st.dataframe(df_display[["Unique_ID", "Category", "Review_text", "Sentiment", "Response"]], use_container_width=True)
 
-# Sentiment Distribution Chart
+# ✅ Sentiment Distribution Chart
 st.subheader("📊 Sentiment Breakdown")
-chart_data = df["Sentiment"].value_counts().reset_index()
+chart_data = df_display["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
 fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# Download Button
-st.download_button("⬇️ Download CSV", df_display.to_csv(index=False).encode("utf-8"), "sentiment_responses.csv", "text/csv")
+# ✅ Download Button - does not cause screen to refresh
+st.download_button(
+    label="⬇️ Download CSV",
+    data=df_display.to_csv(index=False).encode("utf-8"),
+    file_name="sentiment_responses.csv",
+    mime="text/csv"
+)
