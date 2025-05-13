@@ -26,9 +26,10 @@ if "Review_text" not in df.columns:
     st.stop()
 
 # Load Sentiment Model (English-only)
+# Load Sentiment Model (Pre-trained for sentiment analysis)
 @st.cache_resource
 def load_sentiment_model():
-    return pipeline("sentiment-analysis", model="distilbert-base-uncased")
+    return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
 
 sentiment_pipeline = load_sentiment_model()
 
