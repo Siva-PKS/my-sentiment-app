@@ -1,5 +1,16 @@
-streamlit
+# requirements.txt for Streamlit sentiment app with working transformer models
+
+streamlit>=1.33.0
 pandas
 plotly
-torch==2.0.1
-transformers
+transformers==4.37.2
+torch==2.1.2
+tqdm
+scikit-learn
+
+# Optional: Faster CSV reading
+pyarrow
+
+# Optional for CPU-only environment
+# If using GPU, change the index URL accordingly
+--extra-index-url https://download.pytorch.org/whl/cpu
