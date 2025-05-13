@@ -48,7 +48,9 @@ else:
 # If the data has been processed previously, skip further processing
 if st.session_state.processed:
     st.info("ℹ️ The data has already been processed. Refresh the page to process again.")
-    st.dataframe(df[["Unique_ID", "Category","Review_text", "Sentiment", "Response"]], use_container_width=True)
+    # Show only columns that exist
+    display_cols = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Response"] if col in df.columns]
+    st.dataframe(df[display_cols], use_container_width=True)
     st.stop()
 
 # Limit rows for demo purposes
