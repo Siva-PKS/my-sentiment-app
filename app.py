@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -23,10 +22,10 @@ if "processed" not in st.session_state:
 # Check for existing sample data if no file uploaded
 sample_data_path = "sample_data.csv"
 
-# Upload CSV
+# Upload CSV or use default sample data file
 uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
 
-# If no file is uploaded, check for sample data.csv
+# If no file is uploaded, check for sample_data.csv
 if uploaded_file is None:
     if os.path.exists(sample_data_path):
         st.success("✅ Using 'sample_data.csv' from the directory.")
@@ -53,7 +52,7 @@ if st.session_state.processed:
     st.stop()
 
 # Limit rows for demo purposes
-MAX_ROWS = 200
+MAX_ROWS = 100
 if len(df) > MAX_ROWS:
     st.warning(f"⚠️ Limiting processing to first {MAX_ROWS} rows for faster performance.")
     df = df.head(MAX_ROWS)
@@ -117,11 +116,6 @@ progress_bar = st.progress(0)
 sentiments = []
 responses = []
 
-# Show progress bar
-progress_bar = st.progress(0)
-sentiments = []
-responses = []
-
 # Iterate over the DataFrame to process reviews
 for i, row in enumerate(df.itertuples(index=False)):
     sentiment = analyze_sentiment(row.Review_text)
@@ -137,11 +131,14 @@ for i, row in enumerate(df.itertuples(index=False)):
 df["Sentiment"] = sentiments
 df["Response"] = responses
 
-st.success("✅ Processing complete!")
+# Mark as processed in session state
+st.session_state.processed = True
 
 # Display results
+st.success("✅ Processing complete!")
+
 st.subheader("📋 Preview")
-st.dataframe(df[["Unique_ID", "Category", "Review_text", "Sentiment", "Response"]], use_container_width=True)
+st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
 # Sentiment Distribution Chart
 st.subheader("📊 Sentiment Breakdown")
