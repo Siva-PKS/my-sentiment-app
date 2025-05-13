@@ -101,17 +101,30 @@ def generate_response(sentiment, review):
 progress_bar = st.progress(0)
 sentiments = []
 responses = []
+
+# Show progress bar
+progress_bar = st.progress(0)
+sentiments = []
+responses = []
+
+# Iterate over the DataFrame to process reviews
 for i, row in enumerate(df.itertuples(index=False)):
     sentiment = analyze_sentiment(row.Review_text)
-    response = generate_response(sentiment, row.Review_text)
+    if sentiment == "Negative":
+        response = generate_response(sentiment, row.Review_text)
+    else:
+        response = "No response needed."
     sentiments.append(sentiment)
     responses.append(response)
     progress_bar.progress((i + 1) / len(df))
 
+# Add the generated sentiment and response to the dataframe
 df["Sentiment"] = sentiments
 df["Response"] = responses
 
 st.success("✅ Processing complete!")
+
+# Display results
 st.subheader("📋 Preview")
 st.dataframe(df[["Unique_ID", "Category", "Review_text", "Sentiment", "Response"]], use_container_width=True)
 
