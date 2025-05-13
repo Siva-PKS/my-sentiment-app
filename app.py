@@ -1,13 +1,10 @@
-
 import streamlit as st
 import pandas as pd
-import openai
 import plotly.express as px
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
+import torch
 
-# Initialize OpenAI API key
-openai.api_key = st.secrets["openai"]["api_key"]
-
-st.title("📊 Sentiment Analysis on Reviews")
+st.title("📊 Sentiment Analysis on Reviews (Hugging Face Edition)")
 
 uploaded_file = st.file_uploader("Upload a CSV file with 'Review_text' column", type="csv")
 
@@ -22,34 +19,38 @@ else:
 # Ensure 'Review_text' exists
 if "Review_text" in df.columns:
 
-    # Sentiment analysis function using OpenAI GPT-3.5 or GPT-4 model (Completion.create)
-    def get_sentiment_from_gpt(text):
-        prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
-        response = openai.Completion.create(
-            model= "gpt-4-turbo",
-            prompt=prompt,
-            max_tokens=10,
-            temperature=0.0  # Ensure deterministic results
-        )
-        sentiment = response['choices'][0]['text'].strip()
-        return sentiment
+    # Load sentiment pipeline
+    @st.cache_resource
+    def load_sentiment_model():
+        return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
 
+    sentiment_pipeline = load_sentiment_model()
+
+    # Load text generation pipeline
+    @st.cache_resource
+    def load_response_model():
+        tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+        model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+        return tokenizer, model
+
+    response_tokenizer, response_model = load_response_model()
+
+    # Sentiment analysis function
+    def get_sentiment(text):
+        result = sentiment_pipeline(text[:512])[0]
+        return result["label"].capitalize()  # e.g., 'Positive', 'Negative'
+
+    # Feedback response generation
     def generate_feedback_response(sentiment, review):
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
-
-        response = openai.Completion.create(
-            model= "gpt-4-turbo",
-            prompt=prompt,
-            max_tokens=100,
-            temperature=0.7
-        )
-
-        return response['choices'][0]['text'].strip()
+        inputs = response_tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
+        outputs = response_model.generate(**inputs, max_new_tokens=100)
+        return response_tokenizer.decode(outputs[0], skip_special_tokens=True)
 
     # Apply sentiment analysis
-    df["Sentiment"] = df["Review_text"].apply(get_sentiment_from_gpt)
+    df["Sentiment"] = df["Review_text"].apply(get_sentiment)
 
-    # Apply feedback response generation
+    # Generate responses
     df["Feedback_Response"] = df.apply(lambda row: generate_feedback_response(row["Sentiment"], row["Review_text"]), axis=1)
 
     st.write("### 🧾 Sentiment Results with Feedback Responses")
@@ -65,7 +66,7 @@ if "Review_text" in df.columns:
                  color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig, use_container_width=True)
 
-    # Download option
+    # Download button
     st.download_button(
         label="📥 Download results as CSV",
         data=df.to_csv(index=False).encode("utf-8"),
