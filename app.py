@@ -18,18 +18,24 @@ st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 # Upload CSV
 uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
 
+# Read CSV and validate content
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
         if df.empty or "Review_text" not in df.columns:
-            st.error("❌ Missing or empty 'Review_text' column.")
+            st.error("❌ Uploaded file is empty or missing 'Review_text' column.")
             st.stop()
-        st.success("✅ File uploaded successfully.")
+        st.success("✅ CSV uploaded and validated successfully.")
     except Exception as e:
         st.error(f"❌ Failed to read CSV: {e}")
         st.stop()
 else:
-    st.stop()
+    try:
+        df = pd.read_csv("sample_data.csv")
+        st.info("ℹ️ Using sample CSV (sample_data.csv)")
+    except Exception as e:
+        st.error(f"❌ Failed to load sample CSV: {e}")
+        st.stop()
 
 # Limit rows for demo purposes
 MAX_ROWS = 100
