@@ -3,4 +3,3 @@ pandas
 openai==0.28
 plotly
 textblob
-model="gpt-4-turbo"
