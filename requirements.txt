@@ -4,6 +4,7 @@ streamlit
 transformers==4.38.2
 torch==2.2.1
 numpy<2.0
+plotly
 
 # Optional: Faster CSV reading
 pyarrow
