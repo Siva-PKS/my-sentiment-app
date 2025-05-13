@@ -1,88 +1,87 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 
-st.title("📊 Sentiment Analysis on Reviews (Multilingual HF Edition)")
+st.set_page_config(page_title="Sentiment & Response Generator", layout="wide")
+st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
-uploaded_file = st.file_uploader("Upload a CSV file with 'Review_text' column", type="csv")
+# File Upload Section
+uploaded_file = st.file_uploader("📁 Upload a CSV file with a column named 'Review_text'", type="csv")
 
-# Load uploaded or fallback CSV
+# Load uploaded or fallback sample
 if uploaded_file is not None:
     df = pd.read_csv(uploaded_file)
-    st.success("CSV uploaded successfully.")
+    st.success("✅ CSV uploaded successfully.")
 else:
     df = pd.read_csv("sample_data.csv")
-    st.info("Using sample CSV from repo (sample_data.csv).")
+    st.info("ℹ️ Using sample CSV (sample_data.csv)")
 
-# Ensure 'Review_text' exists
-if "Review_text" in df.columns:
+# Proceed only if expected column exists
+if "Review_text" not in df.columns:
+    st.error("❌ The uploaded CSV must contain a 'Review_text' column.")
+    st.stop()
 
-    # Load multilingual sentiment model
-    @st.cache_resource
-    def load_sentiment_model():
-        return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
+# Load Sentiment Model (English, lightweight)
+@st.cache_resource
+def load_sentiment_model():
+    return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
 
-    sentiment_pipeline = load_sentiment_model()
+sentiment_pipeline = load_sentiment_model()
 
-    # Load instruction-following model (FLAN-T5)
-    @st.cache_resource
-    def load_response_model():
-        tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
-        model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
-        return tokenizer, model
+# Load LLM for Response Generation (FLAN-T5, instruction-tuned)
+@st.cache_resource
+def load_response_model():
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+    return tokenizer, model
 
-    response_tokenizer, response_model = load_response_model()
+response_tokenizer, response_model = load_response_model()
 
-    # Sentiment classifier using stars → Positive/Neutral/Negative
-    def get_sentiment(text):
-        try:
-            if pd.isna(text):
-                return "Unknown"
-            result = sentiment_pipeline(str(text)[:512])[0]
-            label = result["label"].lower()
-            if "1" in label or "2" in label:
-                return "Negative"
-            elif "3" in label:
-                return "Neutral"
-            else:
-                return "Positive"
-        except Exception:
-            return "Error"
+# Helper: Run sentiment analysis
+def analyze_sentiment(text):
+    try:
+        result = sentiment_pipeline(str(text).strip()[:512])[0]
+        return result["label"].capitalize()
+    except Exception as e:
+        return "Unknown"
 
-    # Generate customer support response
-    def generate_feedback_response(sentiment, review):
-        prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
-        inputs = response_tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
-        outputs = response_model.generate(**inputs, max_new_tokens=100)
-        return response_tokenizer.decode(outputs[0], skip_special_tokens=True)
+# Helper: Generate a professional customer support response
+def generate_response(sentiment, review):
+    prompt = f"""You're a helpful support agent. Generate a professional response for the customer review below.
 
-    # Apply analysis
-    df["Sentiment"] = df["Review_text"].apply(get_sentiment)
-    df["Feedback_Response"] = df.apply(lambda row: generate_feedback_response(row["Sentiment"], row["Review_text"]), axis=1)
+Review: "{review}"
+Sentiment: {sentiment}
+Response:"""
+    inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    output = response_model.generate(**inputs, max_new_tokens=100)
+    return response_tokenizer.decode(output[0], skip_special_tokens=True)
 
-    st.write("### 🧾 Sentiment Results with Feedback Responses")
-    st.dataframe(df)
+with st.spinner("🚀 Running sentiment analysis and generating responses..."):
+    df["Sentiment"] = df["Review_text"].apply(analyze_sentiment)
+    df["Response"] = df.apply(lambda row: generate_response(row["Sentiment"], row["Review_text"]), axis=1)
 
-    # Plot sentiment distribution
-    sentiment_counts = df["Sentiment"].value_counts().reset_index()
-    sentiment_counts.columns = ["Sentiment", "Count"]
+st.success("✅ Processing complete!")
 
-    st.write("### 📊 Sentiment Distribution (Interactive)")
-    fig = px.bar(sentiment_counts, x="Sentiment", y="Count", color="Sentiment",
-                 title="Review Sentiment Breakdown",
-                 color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
-    st.plotly_chart(fig, use_container_width=True)
+# Show results
+st.subheader("📋 Results Preview")
+st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
-    # Download CSV
-    st.download_button(
-        label="📥 Download results as CSV",
-        data=df.to_csv(index=False).encode("utf-8"),
-        file_name="sentiment_feedback_output.csv",
-        mime="text/csv"
-    )
+# Chart: Sentiment distribution
+st.subheader("📊 Sentiment Breakdown")
+chart_data = df["Sentiment"].value_counts().reset_index()
+chart_data.columns = ["Sentiment", "Count"]
 
-else:
-    st.error("The uploaded CSV must contain a 'Review_text' column.")
+fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
+             color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"},
+             title="Sentiment Distribution")
+st.plotly_chart(fig, use_container_width=True)
+
+# Download processed CSV
+st.download_button(
+    label="⬇️ Download Results as CSV",
+    data=df.to_csv(index=False).encode("utf-8"),
+    file_name="sentiment_responses.csv",
+    mime="text/csv"
+)
