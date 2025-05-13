@@ -1,12 +1,9 @@
 # requirements.txt for Streamlit sentiment app with working transformer models
 
-streamlit>=1.33.0
-pandas
-plotly
-transformers==4.37.2
-torch==2.1.2
-tqdm
-scikit-learn
+streamlit
+transformers==4.38.2
+torch==2.2.1
+numpy<2.0
 
 # Optional: Faster CSV reading
 pyarrow
