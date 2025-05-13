@@ -15,27 +15,41 @@ except AttributeError:
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
+# Initialize session state for tracking if file has been processed
+if "processed" not in st.session_state:
+    st.session_state.processed = False
+
+# Check for existing sample data if no file uploaded
+sample_data_path = "sample_data.csv"
+
 # Upload CSV
 uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
 
-# Read CSV and validate content
-if uploaded_file is not None:
+# If no file is uploaded, check for sample data.csv
+if uploaded_file is None:
+    if os.path.exists(sample_data_path):
+        st.success("✅ Using 'sample_data.csv' from the directory.")
+        df = pd.read_csv(sample_data_path)
+    else:
+        st.error("❌ 'sample_data.csv' not found. Please upload your own CSV.")
+        st.stop()
+else:
+    # Process the uploaded file
     try:
         df = pd.read_csv(uploaded_file)
         if df.empty or "Review_text" not in df.columns:
-            st.error("❌ Uploaded file is empty or missing 'Review_text' column.")
+            st.error("❌ Missing or empty 'Review_text' column.")
             st.stop()
-        st.success("✅ CSV uploaded and validated successfully.")
+        st.success("✅ File uploaded successfully.")
     except Exception as e:
         st.error(f"❌ Failed to read CSV: {e}")
         st.stop()
-else:
-    try:
-        df = pd.read_csv("sample_data.csv")
-        st.info("ℹ️ Using sample CSV (sample_data.csv)")
-    except Exception as e:
-        st.error(f"❌ Failed to load sample CSV: {e}")
-        st.stop()
+
+# If the data has been processed previously, skip further processing
+if st.session_state.processed:
+    st.info("ℹ️ The data has already been processed. Refresh the page to process again.")
+    st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
+    st.stop()
 
 # Limit rows for demo purposes
 MAX_ROWS = 200
