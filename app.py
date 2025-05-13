@@ -138,7 +138,7 @@ st.session_state.processed = True
 st.success("✅ Processing complete!")
 
 st.subheader("📋 Preview")
-st.dataframe(df[["Unique_ID", "Category", "Review_text", "Sentiment", "Response"]], use_container_width=True)
+st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
 # Sentiment Distribution Chart
 st.subheader("📊 Sentiment Breakdown")
