@@ -45,10 +45,23 @@ else:
         st.error(f"❌ Failed to read CSV: {e}")
         st.stop()
 
+# Check for required columns safely
+def show_dataframe_if_columns_exist(df, columns, message):
+    missing_cols = [col for col in columns if col not in df.columns]
+    if missing_cols:
+        st.warning(f"⚠️ {message} Missing columns: {', '.join(missing_cols)}")
+        st.dataframe(df, use_container_width=True)
+    else:
+        st.info(message)
+        st.dataframe(df[columns], use_container_width=True)
+
 # If the data has been processed previously, skip further processing
 if st.session_state.processed:
-    st.info("ℹ️ The data has already been processed. Refresh the page to process again.")
-    st.dataframe(df[["Unique_ID", "Category","Review_text", "Sentiment", "Response"]], use_container_width=True)
+    show_dataframe_if_columns_exist(
+        df,
+        ["Unique_ID", "Category", "Review_text", "Sentiment", "Response"],
+        "ℹ️ The data has already been processed. Refresh the page to process again."
+    )
     st.stop()
 
 # Limit rows for demo purposes
@@ -108,7 +121,7 @@ def generate_response(sentiment, review):
     if not llm_reply.endswith(('.', '!', '?')):
         llm_reply += '.'
 
-    # Return formatted response
+     # Return formatted response
     return f"Thank you for your review. We will look into the issue. {llm_reply}"
 
 # Show progress bar
@@ -138,7 +151,7 @@ st.session_state.processed = True
 st.success("✅ Processing complete!")
 
 st.subheader("📋 Preview")
-st.dataframe(df[["Unique_ID", "Category","Review_text", "Sentiment", "Response"]], use_container_width=True)
+st.dataframe(df[["Unique_ID", "Category", "Review_text", "Sentiment", "Response"]], use_container_width=True)
 
 # Sentiment Distribution Chart
 st.subheader("📊 Sentiment Breakdown")
