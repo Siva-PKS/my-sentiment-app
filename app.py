@@ -26,7 +26,7 @@ if "Review_text" in df.columns:
     def get_sentiment_from_gpt(text):
         prompt = f"Classify the sentiment of this text as Positive, Negative, or Neutral: {text}"
         response = openai.Completion.create(
-            model= "gpt-4",
+            model= "gpt-4-turbo",
             prompt=prompt,
             max_tokens=10,
             temperature=0.0  # Ensure deterministic results
@@ -38,7 +38,7 @@ if "Review_text" in df.columns:
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
 
         response = openai.Completion.create(
-            model="gpt-4",
+            model= "gpt-4-turbo",
             prompt=prompt,
             max_tokens=100,
             temperature=0.7
