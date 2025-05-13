@@ -1,5 +1,5 @@
 streamlit
 pandas
-openai==0.28
+transformers
 plotly
 textblob
