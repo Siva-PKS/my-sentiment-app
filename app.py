@@ -1,11 +1,10 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 
-# Set up the page
+# Set up the page configuration
 st.set_page_config(page_title="Sentiment & Response Generator", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
@@ -25,7 +24,6 @@ if "Review_text" not in df.columns:
     st.error("❌ The uploaded CSV must contain a 'Review_text' column.")
     st.stop()
 
-# Load Sentiment Model (English-only)
 # Load Sentiment Model (Pre-trained for sentiment analysis)
 @st.cache_resource
 def load_sentiment_model():
@@ -33,7 +31,7 @@ def load_sentiment_model():
 
 sentiment_pipeline = load_sentiment_model()
 
-# Load LLM for Response Generation (FLAN-T5, instruction-tuned, English-only)
+# Load LLM for Response Generation (FLAN-T5, instruction-tuned)
 @st.cache_resource
 def load_response_model():
     tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
@@ -46,7 +44,8 @@ response_tokenizer, response_model = load_response_model()
 def analyze_sentiment(text):
     try:
         result = sentiment_pipeline(str(text).strip()[:512])[0]
-        return result["label"].capitalize()  # Returns "POSITIVE", "NEGATIVE", or "NEUTRAL"
+        sentiment = result["label"].capitalize()  # Returns "POSITIVE", "NEGATIVE", or "NEUTRAL"
+        return sentiment
     except Exception as e:
         return "Unknown"
 
@@ -57,11 +56,16 @@ def generate_response(sentiment, review):
 Review: "{review}"
 Sentiment: {sentiment}
 Response:"""
-    inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output = response_model.generate(**inputs, max_new_tokens=100)
-    return response_tokenizer.decode(output[0], skip_special_tokens=True)
+    
+    # Optimizing with no_grad() to speed up inference
+    with torch.no_grad():
+        inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+        output = response_model.generate(**inputs, max_new_tokens=100)
+        return response_tokenizer.decode(output[0], skip_special_tokens=True)
 
+# Main processing block
 with st.spinner("🚀 Running sentiment analysis and generating responses..."):
+    # Perform sentiment analysis and response generation in parallel for faster processing
     df["Sentiment"] = df["Review_text"].apply(analyze_sentiment)
     df["Response"] = df.apply(lambda row: generate_response(row["Sentiment"], row["Review_text"]), axis=1)
 
