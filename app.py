@@ -33,7 +33,7 @@ else:
 # Limit the number of rows to 100 for faster processing
 row_limit = 100
 df = df.head(row_limit)
-st.info(f"ℹ️ Processing {len(df)} rows for faster processing.")
+st.info(f"⚡ Limiting to first {len(df)} rows for faster demo processing.")
 
 # Load Sentiment Model (English-only)
 @st.cache_resource
@@ -84,19 +84,22 @@ def generate_response_if_needed(sentiment, review):
     else:
         return "No response needed"
 
-# Add a progress bar with Streamlit
+# Initialize lists and progress bar
+sentiments = []
+responses = []
 progress_bar = st.progress(0)
 
-# Initialize responses list
-responses = []
-
+# Process each row
 with st.spinner("🚀 Running sentiment analysis and generating responses..."):
-    for i, row in tqdm(df.iterrows(), total=len(df), desc="Processing", position=0, leave=True):
+    for i, row in tqdm(df.iterrows(), total=len(df), desc="Processing"):
         sentiment = analyze_sentiment(row['Review_text'])
         response = generate_response_if_needed(sentiment, row['Review_text'])
+        sentiments.append(sentiment)
         responses.append(response)
-        progress_bar.progress((i + 1) / len(df))  # Update progress bar
+        progress_bar.progress((i + 1) / len(df))
 
+# Add to DataFrame
+df["Sentiment"] = sentiments
 df["Response"] = responses
 
 st.success("✅ Processing complete!")
