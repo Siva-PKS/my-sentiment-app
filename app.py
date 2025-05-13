@@ -53,7 +53,7 @@ label_map = {
     "LABEL_2": "Positive"
 }
 
-# Helper: Run sentiment analysis
+# Analyze sentiment
 def analyze_sentiment(text):
     try:
         result = sentiment_pipeline(str(text).strip()[:512])[0]
@@ -61,35 +61,36 @@ def analyze_sentiment(text):
     except Exception:
         return "Unknown"
 
-# Helper: Generate a professional customer support response
-def generate_response(sentiment, review):
-    prompt = f"""You're a helpful support agent. Generate a professional response for the customer review below.
+# Generate professional reply for negative reviews
+def generate_response(review):
+    prompt = f"""You are a professional and empathetic customer support agent.
+The following customer left a negative review. Write a sincere and helpful response:
 
-Review: \"{review}\"
-Sentiment: {sentiment}
-Response:"""
+Customer Review: "{review}"
+Support Response:"""
     inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
     output = response_model.generate(**inputs, max_new_tokens=100)
     return response_tokenizer.decode(output[0], skip_special_tokens=True)
 
-# Conditional response generator
+# Conditional response
 def generate_response_if_needed(sentiment, review):
     if sentiment == "Negative":
-        return generate_response(sentiment, review)
+        return generate_response(review)
     else:
-        return "No response needed"
+        return "No response needed."
 
+# Run sentiment and auto-reply
 with st.spinner("🚀 Running sentiment analysis and generating responses..."):
     df["Sentiment"] = df["Review_text"].apply(analyze_sentiment)
     df["Response"] = df.apply(lambda row: generate_response_if_needed(row["Sentiment"], row["Review_text"]), axis=1)
 
 st.success("✅ Processing complete!")
 
-# Show results
+# Display result
 st.subheader("📋 Results Preview")
 st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
-# Chart: Sentiment distribution
+# Sentiment chart
 st.subheader("📊 Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
@@ -99,7 +100,7 @@ fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              title="Sentiment Distribution")
 st.plotly_chart(fig, use_container_width=True)
 
-# Download processed CSV
+# Download button
 st.download_button(
     label="⬇️ Download Results as CSV",
     data=df.to_csv(index=False).encode("utf-8"),
