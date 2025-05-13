@@ -1,17 +1,18 @@
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 
-# Set up the page
+# Page setup
 st.set_page_config(page_title="Sentiment & Response Generator", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
-# File Upload Section
+# File uploader
 uploaded_file = st.file_uploader("📁 Upload a CSV file with a column named 'Review_text'", type="csv")
 
-# Read CSV and validate content
+# Load data
 if uploaded_file is not None:
     try:
         df = pd.read_csv(uploaded_file)
@@ -30,23 +31,26 @@ else:
         st.error(f"❌ Failed to load sample CSV: {e}")
         st.stop()
 
-# Load Sentiment Model (English-only)
+# Limit rows for demo purposes
+df = df.head(20)
+
+# Load sentiment model
 @st.cache_resource
 def load_sentiment_model():
     return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
 
 sentiment_pipeline = load_sentiment_model()
 
-# Load Response Generation Model
+# Load response model (FLAN-T5-small)
 @st.cache_resource
 def load_response_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
     return tokenizer, model
 
 response_tokenizer, response_model = load_response_model()
 
-# Label mapping for sentiment
+# Label mapping
 label_map = {
     "LABEL_0": "Negative",
     "LABEL_1": "Neutral",
@@ -61,46 +65,47 @@ def analyze_sentiment(text):
     except Exception:
         return "Unknown"
 
-# Generate professional reply for negative reviews
-def generate_response(review):
-    prompt = f"""You are a professional and empathetic customer support agent.
-The following customer left a negative review. Write a sincere and helpful response:
+# Generate response
+def generate_response(sentiment, review):
+    if sentiment != "Negative":
+        return "No response needed"
+    prompt = f"""You're a helpful support agent. Generate a professional response for the customer review below.
 
-Customer Review: "{review}"
-Support Response:"""
+Review: "{review}"
+Sentiment: {sentiment}
+Response:"""
     inputs = response_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
     output = response_model.generate(**inputs, max_new_tokens=100)
     return response_tokenizer.decode(output[0], skip_special_tokens=True)
 
-# Conditional response
-def generate_response_if_needed(sentiment, review):
-    if sentiment == "Negative":
-        return generate_response(review)
-    else:
-        return "No response needed."
-
-# Run sentiment and auto-reply
+# Sentiment and response processing with progress bar
 with st.spinner("🚀 Running sentiment analysis and generating responses..."):
     df["Sentiment"] = df["Review_text"].apply(analyze_sentiment)
-    df["Response"] = df.apply(lambda row: generate_response_if_needed(row["Sentiment"], row["Review_text"]), axis=1)
+
+    # Add progress bar
+    progress_bar = st.progress(0)
+    responses = []
+    for i, row in enumerate(df.itertuples(index=False)):
+        responses.append(generate_response(row.Sentiment, row.Review_text))
+        progress_bar.progress((i + 1) / len(df))
+    df["Response"] = responses
 
 st.success("✅ Processing complete!")
 
-# Display result
+# Show results
 st.subheader("📋 Results Preview")
 st.dataframe(df[["Review_text", "Sentiment", "Response"]], use_container_width=True)
 
-# Sentiment chart
+# Chart
 st.subheader("📊 Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
-
 fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"},
              title="Sentiment Distribution")
 st.plotly_chart(fig, use_container_width=True)
 
-# Download button
+# Download
 st.download_button(
     label="⬇️ Download Results as CSV",
     data=df.to_csv(index=False).encode("utf-8"),
