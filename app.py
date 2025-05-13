@@ -11,18 +11,24 @@ st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 # File Upload Section
 uploaded_file = st.file_uploader("📁 Upload a CSV file with a column named 'Review_text'", type="csv")
 
-# Load uploaded or fallback sample
+# Read CSV and validate content
 if uploaded_file is not None:
-    df = pd.read_csv(uploaded_file)
-    st.success("✅ CSV uploaded successfully.")
+    try:
+        df = pd.read_csv(uploaded_file)
+        if df.empty or "Review_text" not in df.columns:
+            st.error("❌ Uploaded file is empty or missing 'Review_text' column.")
+            st.stop()
+        st.success("✅ CSV uploaded and validated successfully.")
+    except Exception as e:
+        st.error(f"❌ Failed to read CSV: {e}")
+        st.stop()
 else:
-    df = pd.read_csv("sample_data.csv")
-    st.info("ℹ️ Using sample CSV (sample_data.csv)")
-
-# Proceed only if expected column exists
-if "Review_text" not in df.columns:
-    st.error("❌ The uploaded CSV must contain a 'Review_text' column.")
-    st.stop()
+    try:
+        df = pd.read_csv("sample_data.csv")
+        st.info("ℹ️ Using sample CSV (sample_data.csv)")
+    except Exception as e:
+        st.error(f"❌ Failed to load sample CSV: {e}")
+        st.stop()
 
 # Load Sentiment Model (English-only)
 @st.cache_resource
