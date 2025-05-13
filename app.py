@@ -143,15 +143,17 @@ for i, row in enumerate(df.itertuples(index=False)):
 # Add the generated sentiment and response to the dataframe
 df["Sentiment"] = sentiments
 df["Response"] = responses
+st.session_state.df_processed = df.copy()
 
 # Mark as processed in session state
 st.session_state.processed = True
+df_display = st.session_state.df_processed
 
 # Display results
 st.success("✅ Processing complete!")
 
 st.subheader("📋 Preview")
-st.dataframe(df[["Unique_ID", "Category","Review_text", "Sentiment", "Response"]], use_container_width=True)
+st.dataframe(df_display[["Unique_ID", "Category","Review_text", "Sentiment", "Response"]], use_container_width=True)
 
 # Sentiment Distribution Chart
 st.subheader("📊 Sentiment Breakdown")
@@ -162,4 +164,4 @@ fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
 st.plotly_chart(fig, use_container_width=True)
 
 # Download Button
-st.download_button("⬇️ Download CSV", df.to_csv(index=False).encode("utf-8"), "sentiment_responses.csv", "text/csv")
+st.download_button("⬇️ Download CSV", df_display.to_csv(index=False).encode("utf-8"), "sentiment_responses.csv", "text/csv")
