@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
+import os  # Import os module
 
 # Hotfix for torch.classes introspection issue in Streamlit
 try:
