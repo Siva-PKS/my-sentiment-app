@@ -16,8 +16,13 @@ st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wid
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
 # Initialize session state for tracking if file has been processed
-if "processed" not in st.session_state:
-    st.session_state.processed = False
+# To automatically reset st.session_state.processed whenever the uploaded file changes
+if uploaded_file is not None:
+    # Reset session state if new file uploaded
+    if "last_uploaded_filename" not in st.session_state or st.session_state.last_uploaded_filename != uploaded_file.name:
+        st.session_state.last_uploaded_filename = uploaded_file.name
+        st.session_state.processed = False
+
 
 # Check for existing sample data if no file uploaded
 sample_data_path = "sample_data.csv"
@@ -41,6 +46,7 @@ else:
             st.error("❌ Missing or empty 'Review_text' column.")
             st.stop()
         st.success("✅ File uploaded successfully.")
+        st.session_state.processed = False  # <--- Reset processing for new file
     except Exception as e:
         st.error(f"❌ Failed to read CSV: {e}")
         st.stop()
