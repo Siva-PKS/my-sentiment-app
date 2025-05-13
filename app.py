@@ -3,6 +3,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+import torch
+
+# Hotfix for torch.classes introspection issue in Streamlit
+try:
+    del torch._classes
+except AttributeError:
+    pass
 
 # Set page configuration
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
