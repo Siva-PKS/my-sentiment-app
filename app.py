@@ -38,7 +38,7 @@ else:
         st.stop()
 
 # Limit rows for demo purposes
-MAX_ROWS = 250
+MAX_ROWS = 200
 if len(df) > MAX_ROWS:
     st.warning(f"⚠️ Limiting processing to first {MAX_ROWS} rows for faster performance.")
     df = df.head(MAX_ROWS)
