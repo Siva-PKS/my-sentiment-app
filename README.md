@@ -1,7 +1,7 @@
 # my-sentiment-app
 # 📊 Sentiment Analysis Web App
 
-This is a simple Streamlit web app that performs **sentiment analysis** on text data from a CSV file using **TextBlob**. You can upload your own CSV or use the sample provided.
+This is a simple Streamlit web app that performs **sentiment analysis** on text data from a CSV file using **transformers**. You can upload your own CSV or use the sample provided.
 
 ![Streamlit App Screenshot](https://github.com/Siva-PKS/my-sentiment-app/assets/yourimage.png)
 
@@ -20,8 +20,10 @@ This is a simple Streamlit web app that performs **sentiment analysis** on text 
 
 - Python
 - Streamlit
-- Pandas
-- TextBlob
+- torch
+- transformers
+- numpy
+- plotly
 
 ---
 
@@ -29,7 +31,7 @@ This is a simple Streamlit web app that performs **sentiment analysis** on text 
 
 ### Option 1: Run Online (Recommended)
 
-👉 [Click here to open the app](https://your-username-your-repo-name.streamlit.app)
+👉 [Click here to open the app](https://my-sentiment-app-6q6wtrr2twwon2j7lrje4i.streamlit.app)
 
 ### Option 2: Run Locally
 
