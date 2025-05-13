@@ -15,20 +15,18 @@ except AttributeError:
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
-# Initialize session state for tracking if file has been processed
-# To automatically reset st.session_state.processed whenever the uploaded file changes
-if uploaded_file is not None:
-    # Reset session state if new file uploaded
-    if "last_uploaded_filename" not in st.session_state or st.session_state.last_uploaded_filename != uploaded_file.name:
-        st.session_state.last_uploaded_filename = uploaded_file.name
-        st.session_state.processed = False
-
-
 # Check for existing sample data if no file uploaded
 sample_data_path = "sample_data.csv"
 
 # Upload CSV or use default sample data file
 uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
+
+# Optional Enhancement: Reset state if new file uploaded
+if uploaded_file is not None:
+    if "last_uploaded_filename" not in st.session_state or st.session_state.last_uploaded_filename != uploaded_file.name:
+        st.session_state.last_uploaded_filename = uploaded_file.name
+        st.session_state.processed = False
+
 
 # If no file is uploaded, check for sample_data.csv
 if uploaded_file is None:
