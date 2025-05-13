@@ -71,10 +71,25 @@ def analyze_sentiment(text):
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
-    prompt = f"You are a helpful support agent. Write a professional response to the following review:\nReview: {review}"
+    
+    # Construct the prompt for LLM
+    prompt = (
+        "You are a polite and helpful customer support agent. "
+        "Write a short, professional reply to this negative customer review:\n"
+        f"Review: {review}"
+    )
+    
+    # Tokenize and generate response
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
     output = model.generate(**inputs, max_new_tokens=150)
-    return tokenizer.decode(output[0], skip_special_tokens=True)
+    llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
+    
+    # Ensure proper punctuation
+    if not llm_reply.endswith(('.', '!', '?')):
+        llm_reply += '.'
+
+    # Return formatted response
+    return f"Thank you for your review. We will look into the issue. {llm_reply}"
 
 # Show progress bar
 progress_bar = st.progress(0)
