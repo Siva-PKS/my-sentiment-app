@@ -1,6 +1,6 @@
 streamlit
 pandas
 plotly
-transformers
 torch
-
+transformers
+sentencepiece
