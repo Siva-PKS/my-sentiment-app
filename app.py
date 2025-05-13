@@ -19,28 +19,35 @@ else:
 # Ensure 'Review_text' exists
 if "Review_text" in df.columns:
 
-    # Load sentiment pipeline
+    # Load multilingual sentiment analysis model (fast)
     @st.cache_resource
     def load_sentiment_model():
-        return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
+        return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
     sentiment_pipeline = load_sentiment_model()
 
-    # Load text generation pipeline
+    # Load multilingual and faster text generation model
     @st.cache_resource
     def load_response_model():
-        tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
-        model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+        tokenizer = AutoTokenizer.from_pretrained("google/mt5-small")
+        model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-small")
         return tokenizer, model
 
     response_tokenizer, response_model = load_response_model()
 
-    # Sentiment analysis function
+    # Sentiment analysis function (using multilingual model)
     def get_sentiment(text):
         result = sentiment_pipeline(text[:512])[0]
-        return result["label"].capitalize()  # e.g., 'Positive', 'Negative'
+        sentiment = result["label"]
+        # Map numerical labels to sentiment labels
+        if sentiment == '0':
+            return 'Negative'
+        elif sentiment == '1':
+            return 'Neutral'
+        else:
+            return 'Positive'
 
-    # Feedback response generation
+    # Feedback response generation (using multilingual model)
     def generate_feedback_response(sentiment, review):
         prompt = f"Generate a professional customer support response to the following review:\n\n\"{review}\"\n\nSentiment: {sentiment}"
         inputs = response_tokenizer(prompt, return_tensors="pt", max_length=512, truncation=True)
@@ -56,7 +63,7 @@ if "Review_text" in df.columns:
     st.write("### 🧾 Sentiment Results with Feedback Responses")
     st.dataframe(df)
 
-    # Plotly bar chart
+    # Plotly bar chart for sentiment distribution
     sentiment_counts = df["Sentiment"].value_counts().reset_index()
     sentiment_counts.columns = ["Sentiment", "Count"]
 
@@ -66,7 +73,7 @@ if "Review_text" in df.columns:
                  color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig, use_container_width=True)
 
-    # Download button
+    # Download results as CSV
     st.download_button(
         label="📥 Download results as CSV",
         data=df.to_csv(index=False).encode("utf-8"),
