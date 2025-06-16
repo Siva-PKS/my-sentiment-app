@@ -11,6 +11,10 @@ try:
 except AttributeError:
     pass
 
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
+
+
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
