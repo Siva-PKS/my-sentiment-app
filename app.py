@@ -92,11 +92,11 @@ def generate_response(sentiment, review):
         return "No response needed."
 
     prompt = f"Generate a polite customer support reply to this negative review: {review}"
-    
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output = model.generate(**inputs, max_new_tokens=150)
 
-    llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
+    inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    output = llm_model.generate(**inputs, max_new_tokens=150)
+
+    llm_reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
     llm_reply = llm_reply.replace("<extra_id_0>", "").strip()
 
     return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
