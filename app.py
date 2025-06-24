@@ -58,23 +58,24 @@ def load_sentiment_model():
     model = AutoModelForSequenceClassification.from_pretrained(model_name)
     return tokenizer, model
 
-# Load LLM model for auto-responses
+# Load instruction-tuned multilingual LLM (mt0-small)
 @st.cache_resource
 def load_llm_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/mt5-small", use_fast=False)
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-small")
+    tokenizer = AutoTokenizer.from_pretrained("bigscience/mt0-small", use_fast=False)
+    model = AutoModelForSeq2SeqLM.from_pretrained("bigscience/mt0-small")
     return tokenizer, model
 
 sentiment_tokenizer, sentiment_model = load_sentiment_model()
 llm_tokenizer, llm_model = load_llm_model()
 
-# Mapping from model config
+# Sentiment label map
 label_map = {
     0: "Negative",
     1: "Neutral",
     2: "Positive"
 }
 
+# Sentiment analysis
 def analyze_all_sentiments(texts):
     results = []
     sentiment_model.eval()
@@ -87,11 +88,12 @@ def analyze_all_sentiments(texts):
             results.append(label_map.get(label_id, "Unknown"))
     return results
 
+# Response generator
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
 
-    prompt = f"Generate a polite customer support reply to this negative review: {review}"
+    prompt = f"Respond politely to this negative review: {review}"
 
     inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
     output = llm_model.generate(**inputs, max_new_tokens=150)
@@ -101,8 +103,7 @@ def generate_response(sentiment, review):
 
     return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
 
-
-# Process data if not already done
+# Run sentiment + response generation
 if not st.session_state.processed:
     progress_bar = st.progress(0)
     df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
@@ -124,7 +125,7 @@ st.subheader("📋 Preview")
 cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Response"] if col in df.columns]
 st.dataframe(df[cols_to_show], use_container_width=True)
 
-# Sentiment breakdown
+# Sentiment breakdown chart
 st.subheader("📊 Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
@@ -132,7 +133,7 @@ fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# CSV Download
+# Download processed CSV
 st.download_button(
     label="⬇️ Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
