@@ -5,6 +5,7 @@ transformers==4.38.2
 torch==2.2.1
 numpy<2.0
 plotly
+sentencepiece  # <-- required for models like T5, XLM-R
 
 # Optional: Faster CSV reading
 pyarrow
