@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSequenceClassification, AutoModelForSeq2SeqLM
 import torch
 import os
+import warnings
 
 # Fix torch Streamlit bug
 try:
@@ -11,12 +12,10 @@ try:
 except AttributeError:
     pass
 
-import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
-
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
-st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
+st.title("🌐 Multilingual Sentiment Analyzer & Auto-Responder")
 
 # Session state setup
 for key in ["processed", "last_uploaded_filename"]:
@@ -51,31 +50,42 @@ if len(df) > MAX_ROWS:
     st.warning(f"⚠️ Limiting to first {MAX_ROWS} rows for demo.")
     df = df.head(MAX_ROWS)
 
-# Load models
+# Load multilingual sentiment model
 @st.cache_resource
-def load_sentiment_pipeline():
-    return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
+def load_sentiment_model():
+    model_name = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSequenceClassification.from_pretrained(model_name)
+    return tokenizer, model
 
+# Load LLM model for auto-responses
 @st.cache_resource
 def load_llm_model():
     tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
     model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
     return tokenizer, model
 
-# Initialize models
-sentiment_pipeline = load_sentiment_pipeline()
-tokenizer, model = load_llm_model()
+sentiment_tokenizer, sentiment_model = load_sentiment_model()
+llm_tokenizer, llm_model = load_llm_model()
 
+# Mapping from model config
 label_map = {
-    "LABEL_0": "Negative",
-    "LABEL_1": "Neutral",
-    "LABEL_2": "Positive"
+    0: "Negative",
+    1: "Neutral",
+    2: "Positive"
 }
 
-# Fast sentiment analysis (batch)
 def analyze_all_sentiments(texts):
-    results = sentiment_pipeline([t[:512] for t in texts])
-    return [label_map.get(res["label"], "Unknown") for res in results]
+    results = []
+    sentiment_model.eval()
+    with torch.no_grad():
+        for text in texts:
+            inputs = sentiment_tokenizer(text[:512], return_tensors="pt", truncation=True, padding=True)
+            outputs = sentiment_model(**inputs)
+            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            label_id = torch.argmax(probs, dim=1).item()
+            results.append(label_map.get(label_id, "Unknown"))
+    return results
 
 def generate_response(sentiment, review):
     if sentiment != "Negative":
@@ -85,9 +95,9 @@ def generate_response(sentiment, review):
         "Write a short, professional reply to this negative customer review:\n"
         f"Review: {review}"
     )
-    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output = model.generate(**inputs, max_new_tokens=150)
-    llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
+    inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    output = llm_model.generate(**inputs, max_new_tokens=150)
+    llm_reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
     return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
 
 # Process data if not already done
