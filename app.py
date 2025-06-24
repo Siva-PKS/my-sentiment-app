@@ -61,8 +61,8 @@ def load_sentiment_model():
 # Load LLM model for auto-responses
 @st.cache_resource
 def load_llm_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-small")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
+    tokenizer = AutoTokenizer.from_pretrained("google/mt5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/mt5-small")
     return tokenizer, model
 
 sentiment_tokenizer, sentiment_model = load_sentiment_model()
