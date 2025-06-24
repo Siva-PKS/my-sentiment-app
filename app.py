@@ -54,7 +54,7 @@ if len(df) > MAX_ROWS:
 # Load models
 @st.cache_resource
 def load_sentiment_pipeline():
-    return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
+    return pipeline("sentiment-analysis", model="nlptown/bert-base-multilingual-uncased-sentiment")
 
 @st.cache_resource
 def load_llm_model():
