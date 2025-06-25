@@ -95,7 +95,7 @@ def generate_response(sentiment, review):
 
     prompt = f"Respond politely to this negative review: {review}"
 
-    inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
+    inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding=True  # optional but useful for batching)
     output = llm_model.generate(**inputs, max_new_tokens=150)
 
     llm_reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
