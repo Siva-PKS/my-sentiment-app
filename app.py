@@ -48,30 +48,33 @@ if df.empty or "Review_text" not in df.columns:
 MAX_ROWS = 10  # Keep small for Streamlit Cloud
 df = df.dropna(subset=["Review_text"]).head(MAX_ROWS)
 
-# Load multilingual sentiment model
+# Load lightweight sentiment model
 @st.cache_resource
 def load_sentiment_model():
-    model_name = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+    model_name = "nlptown/bert-base-multilingual-uncased-sentiment"
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForSequenceClassification.from_pretrained(model_name)
     return tokenizer, model
 
-# Load instruction-tuned multilingual LLM (mt0-small)
+# Load distilled LLM for response generation
 @st.cache_resource
 def load_llm_model():
-    tokenizer = AutoTokenizer.from_pretrained("bigscience/mt0-small", use_fast=False, legacy=True)
-    model = AutoModelForSeq2SeqLM.from_pretrained("bigscience/mt0-small")
+    model_name = "sshleifer/distilbart-cnn-12-6"
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
     return tokenizer, model
 
 sentiment_tokenizer, sentiment_model = load_sentiment_model()
 llm_tokenizer, llm_model = load_llm_model()
 
-# Sentiment label map
-label_map = {
-    0: "Negative",
-    1: "Neutral",
-    2: "Positive"
-}
+# Convert 1-5 stars to sentiment
+def map_star_to_label(star_rating):
+    if star_rating in [1, 2]:
+        return "Negative"
+    elif star_rating == 3:
+        return "Neutral"
+    else:
+        return "Positive"
 
 # Batch sentiment analysis
 def analyze_all_sentiments(texts, batch_size=8):
@@ -80,11 +83,11 @@ def analyze_all_sentiments(texts, batch_size=8):
     with torch.no_grad():
         for i in range(0, len(texts), batch_size):
             batch = texts[i:i + batch_size]
-            inputs = sentiment_tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
+            inputs = sentiment_tokenizer(batch, return_tensors="pt", padding=True, truncation=True)
             outputs = sentiment_model(**inputs)
             probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
             labels = torch.argmax(probs, dim=1).tolist()
-            results.extend([label_map.get(l, "Unknown") for l in labels])
+            results.extend([map_star_to_label(l + 1) for l in labels])  # 0-based to 1-5
     return results
 
 # Generate response
@@ -92,23 +95,18 @@ def analyze_all_sentiments(texts, batch_size=8):
 def generate_response_cached(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
-    prompt = f"Respond politely to this negative review: {review}"
+    prompt = f"Write a polite short reply to this complaint: {review}"
     inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding=True)
-    output = llm_model.generate(**inputs, max_new_tokens=80)  # Limit tokens for speed
+    output = llm_model.generate(**inputs, max_new_tokens=60)
     reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
-    return f"Thank you for your review. We will look into the issue. {reply.rstrip('.!?')}."
+    return f"Thank you for your review. We will look into the issue. {reply.rstrip('.!?')}"
 
 # Process data
 if not st.session_state.processed:
     try:
         with st.spinner("Analyzing sentiments and generating responses..."):
             df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
-
-            responses = []
-            for i, (sentiment, review) in enumerate(zip(df["Sentiment"], df["Review_text"])):
-                response = generate_response_cached(sentiment, review)
-                responses.append(response)
-
+            responses = [generate_response_cached(s, r) for s, r in zip(df["Sentiment"], df["Review_text"])]
             df["Response"] = responses
             st.session_state.df_processed = df.copy()
             st.session_state.processed = True
