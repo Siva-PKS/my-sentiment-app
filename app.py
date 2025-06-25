@@ -111,3 +111,5 @@ st.download_button(
     label="⬇️ Download CSV with Responses",
     data=df.to_csv(index=False).encode("utf-8"),
     file_name="sentiment_responses.csv",
+    mime="text/csv"
+)
