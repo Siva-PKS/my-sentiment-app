@@ -44,11 +44,9 @@ if df.empty or "Review_text" not in df.columns:
     st.error("❌ Missing or empty 'Review_text' column.")
     st.stop()
 
-# Limit rows for demo speed
-MAX_ROWS = 30
-if len(df) > MAX_ROWS:
-    st.warning(f"⚠️ Limiting to first {MAX_ROWS} rows for demo.")
-    df = df.head(MAX_ROWS)
+# Drop NA and limit rows for performance
+MAX_ROWS = 10  # Keep small for Streamlit Cloud
+df = df.dropna(subset=["Review_text"]).head(MAX_ROWS)
 
 # Load multilingual sentiment model
 @st.cache_resource
@@ -76,7 +74,7 @@ label_map = {
 }
 
 # Batch sentiment analysis
-def analyze_all_sentiments(texts, batch_size=16):
+def analyze_all_sentiments(texts, batch_size=8):
     sentiment_model.eval()
     results = []
     with torch.no_grad():
@@ -90,12 +88,13 @@ def analyze_all_sentiments(texts, batch_size=16):
     return results
 
 # Generate response
-def generate_response(sentiment, review):
+@st.cache_data(show_spinner=False)
+def generate_response_cached(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
     prompt = f"Respond politely to this negative review: {review}"
     inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding=True)
-    output = llm_model.generate(**inputs, max_new_tokens=150)
+    output = llm_model.generate(**inputs, max_new_tokens=80)  # Limit tokens for speed
     reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
     return f"Thank you for your review. We will look into the issue. {reply.rstrip('.!?')}."
 
@@ -106,11 +105,9 @@ if not st.session_state.processed:
             df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
 
             responses = []
-            progress = st.progress(0)
             for i, (sentiment, review) in enumerate(zip(df["Sentiment"], df["Review_text"])):
-                response = generate_response(sentiment, review)
+                response = generate_response_cached(sentiment, review)
                 responses.append(response)
-                progress.progress((i + 1) / len(df))
 
             df["Response"] = responses
             st.session_state.df_processed = df.copy()
@@ -118,7 +115,6 @@ if not st.session_state.processed:
     except Exception as e:
         st.error(f"❌ An error occurred: {str(e)}")
         st.stop()
-
 
 # Use cached processed data
 df = st.session_state.df_processed
@@ -142,4 +138,4 @@ st.download_button(
     data=df.to_csv(index=False).encode("utf-8"),
     file_name="sentiment_responses.csv",
     mime="text/csv"
-)  
+)
