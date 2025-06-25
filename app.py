@@ -15,14 +15,14 @@ except AttributeError:
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
-st.title("🌐 Multilingual Sentiment Analyzer & Auto-Responder")
+st.title("\U0001F310 Multilingual Sentiment Analyzer & Auto-Responder")
 
 # Session state setup
 for key in ["processed", "last_uploaded_filename"]:
     if key not in st.session_state:
         st.session_state[key] = None if key == "last_uploaded_filename" else False
 
-uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
+uploaded_file = st.file_uploader("\U0001F4C1 Upload CSV with 'Review_text' column", type="csv")
 sample_data_path = "sample_data.csv"
 
 # Handle data input
@@ -61,7 +61,7 @@ def load_sentiment_model():
 # Load instruction-tuned multilingual LLM (mt0-small)
 @st.cache_resource
 def load_llm_model():
-    tokenizer = AutoTokenizer.from_pretrained("bigscience/mt0-small", use_fast=False)
+    tokenizer = AutoTokenizer.from_pretrained("bigscience/mt0-small", use_fast=False, legacy=True)
     model = AutoModelForSeq2SeqLM.from_pretrained("bigscience/mt0-small")
     return tokenizer, model
 
@@ -75,68 +75,58 @@ label_map = {
     2: "Positive"
 }
 
-# Sentiment analysis
-def analyze_all_sentiments(texts):
-    results = []
+# Batch sentiment analysis
+def analyze_all_sentiments(texts, batch_size=16):
     sentiment_model.eval()
+    results = []
     with torch.no_grad():
-        for text in texts:
-            inputs = sentiment_tokenizer(text[:512], return_tensors="pt", truncation=True, padding=True)
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i:i + batch_size]
+            inputs = sentiment_tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
             outputs = sentiment_model(**inputs)
             probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
-            label_id = torch.argmax(probs, dim=1).item()
-            results.append(label_map.get(label_id, "Unknown"))
+            labels = torch.argmax(probs, dim=1).tolist()
+            results.extend([label_map.get(l, "Unknown") for l in labels])
     return results
 
-# Response generator
+# Generate response
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
-
     prompt = f"Respond politely to this negative review: {review}"
-
     inputs = llm_tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512, padding=True)
     output = llm_model.generate(**inputs, max_new_tokens=150)
+    reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
+    return f"Thank you for your review. We will look into the issue. {reply.rstrip('.!?')}."
 
-    llm_reply = llm_tokenizer.decode(output[0], skip_special_tokens=True).strip()
-    llm_reply = llm_reply.replace("<extra_id_0>", "").strip()
-
-    return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
-
-# Run sentiment + response generation
+# Process data
 if not st.session_state.processed:
-    progress_bar = st.progress(0)
-    df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
-    responses = []
-    for i, row in df.iterrows():
-        sentiment = row["Sentiment"]
-        review = row["Review_text"]
-        responses.append(generate_response(sentiment, review))
-        progress_bar.progress((i + 1) / len(df))
-    df["Response"] = responses
-    st.session_state.df_processed = df.copy()
-    st.session_state.processed = True
+    with st.spinner("Analyzing sentiments and generating responses..."):
+        df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
+        df["Response"] = [generate_response(s, r) for s, r in zip(df["Sentiment"], df["Review_text"])]
+        st.session_state.df_processed = df.copy()
+        st.session_state.processed = True
 
 # Use cached processed data
 df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
-st.subheader("📋 Preview")
+st.subheader("\U0001F4CB Preview")
 cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Response"] if col in df.columns]
 st.dataframe(df[cols_to_show], use_container_width=True)
 
 # Sentiment breakdown chart
-st.subheader("📊 Sentiment Breakdown")
+st.subheader("\U0001F4CA Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
 fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# Download processed CSV
+# Download button
 st.download_button(
     label="⬇️ Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
     file_name="sentiment_responses.csv",
     mime="text/csv"
-)
+)  
