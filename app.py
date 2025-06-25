@@ -101,11 +101,24 @@ def generate_response(sentiment, review):
 
 # Process data
 if not st.session_state.processed:
-    with st.spinner("Analyzing sentiments and generating responses..."):
-        df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
-        df["Response"] = [generate_response(s, r) for s, r in zip(df["Sentiment"], df["Review_text"])]
-        st.session_state.df_processed = df.copy()
-        st.session_state.processed = True
+    try:
+        with st.spinner("Analyzing sentiments and generating responses..."):
+            df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
+
+            responses = []
+            progress = st.progress(0)
+            for i, (sentiment, review) in enumerate(zip(df["Sentiment"], df["Review_text"])):
+                response = generate_response(sentiment, review)
+                responses.append(response)
+                progress.progress((i + 1) / len(df))
+
+            df["Response"] = responses
+            st.session_state.df_processed = df.copy()
+            st.session_state.processed = True
+    except Exception as e:
+        st.error(f"❌ An error occurred: {str(e)}")
+        st.stop()
+
 
 # Use cached processed data
 df = st.session_state.df_processed
