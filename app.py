@@ -55,8 +55,8 @@ def load_sentiment_pipeline():
 
 @st.cache_resource
 def load_llm_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-xl")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-xl")
     return tokenizer, model
 
 sentiment_pipeline = load_sentiment_pipeline()
@@ -64,20 +64,28 @@ tokenizer, model = load_llm_model()
 
 def analyze_all_sentiments(texts):
     results = sentiment_pipeline([t[:512] for t in texts])
+    # DistilBERT returns 'POSITIVE' or 'NEGATIVE'
     return ["Positive" if r["label"] == "POSITIVE" else "Negative" for r in results]
 
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
     prompt = (
-        "You are a professional and empathetic customer support agent. "
-        "Write a short, polite reply to the following negative review:\n"
-        f"Review: {review}"
+        "You are a professional, empathetic customer support agent. "
+        "Write a short, kind reply to this negative review:\n"
+        f"{review}\n\nResponse:"
     )
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
-    output = model.generate(**inputs, max_new_tokens=100)
+    output = model.generate(
+        **inputs,
+        max_new_tokens=120,
+        do_sample=True,
+        top_p=0.95,
+        temperature=0.7,
+        eos_token_id=tokenizer.eos_token_id
+    )
     reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
-    return f"Thank you for your feedback. We’ll investigate the issue. {reply.rstrip('.!?')}."
+    return f"Thank you for your feedback. {reply.rstrip('.!?')}."
 
 # Processing
 if not st.session_state.processed:
