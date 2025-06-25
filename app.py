@@ -45,7 +45,7 @@ if df.empty or "Review_text" not in df.columns:
     st.stop()
 
 # Limit rows for demo speed
-MAX_ROWS = 50
+MAX_ROWS = 30
 if len(df) > MAX_ROWS:
     st.warning(f"⚠️ Limiting to first {MAX_ROWS} rows for demo.")
     df = df.head(MAX_ROWS)
