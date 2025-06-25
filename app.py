@@ -55,8 +55,8 @@ def load_sentiment_pipeline():
 
 @st.cache_resource
 def load_llm_model():
-    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-xl")
-    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-xl")
+    tokenizer = AutoTokenizer.from_pretrained("google/flan-t5-base")
+    model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-base")
     return tokenizer, model
 
 sentiment_pipeline = load_sentiment_pipeline()
