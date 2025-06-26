@@ -102,7 +102,6 @@ if not st.session_state.processed:
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
     df["Sentiment"] = sentiments
     df["Confidence"] = confidences
-    df["Email_Trigger"] = df["Sentiment"].apply(lambda x: "Yes" if x == "Negative" else "No")
     responses = []
     for i, row in df.iterrows():
         sentiment = row["Sentiment"]
@@ -117,38 +116,37 @@ if not st.session_state.processed:
 df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
-
 # 📋 Preview with styling for Negative sentiment rows
 st.subheader("📋 Preview")
 
-# Define display columns
-display_columns = ["Unique_ID", "date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"]
-cols_to_show = [col for col in display_columns if col in df.columns]
+# Step 1: Add Email_Trigger column
+df["Email_Trigger"] = df["Sentiment"].apply(lambda s: "Yes" if s == "Negative" else "No")
 
-# Highlight rows where Sentiment is Negative
+# Step 2: Highlight Negative rows
 def highlight_negative(row):
     if row["Sentiment"] == "Negative":
         return ['background-color: #ffe6e6'] * len(row)
     else:
         return [''] * len(row)
 
+cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
-# 📬 Trigger Email Actions
+# Step 3: Email Trigger buttons for Negative reviews
 st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
+
 negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
 for idx, row in negative_df.iterrows():
     with st.expander(f"✉️ Email for Review #{idx+1} - {row.get('Unique_ID', f'Row {idx+1}') if 'Unique_ID' in row else ''}"):
-        if "date" in row:
-            st.markdown(f"**Date:** {row['date']}")
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
         if st.button(f"📧 Send Email (Row {idx})"):
             st.success(f"✅ Email sent for review #{idx+1}!")
 
-# 📊 Sentiment Breakdown
+
+# Sentiment breakdown
 st.subheader("📊 Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
@@ -156,7 +154,7 @@ fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# 📈 Sentiment by Category
+# 🔄 Added: Sentiment by Category
 if "Category" in df.columns:
     st.subheader("📈 Sentiment by Category")
     grouped = df.groupby(["Category", "Sentiment"]).size().reset_index(name="Count")
@@ -164,7 +162,7 @@ if "Category" in df.columns:
                   color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig2, use_container_width=True)
 
-# ⬇️ CSV Download
+# CSV Download
 st.download_button(
     label="⬇️ Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
