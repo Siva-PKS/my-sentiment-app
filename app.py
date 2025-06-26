@@ -117,8 +117,15 @@ df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
 st.subheader("📋 Preview")
+def highlight_negative(row):
+    if row["Sentiment"] == "Negative":
+        return ['background-color: #ffe6e6'] * len(row)  # light red
+    else:
+        return [''] * len(row)
+        
 cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response"] if col in df.columns]
-st.dataframe(df[cols_to_show], use_container_width=True)
+styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
+st.dataframe(styled_df, use_container_width=True)
 
 # Sentiment breakdown
 st.subheader("📊 Sentiment Breakdown")
