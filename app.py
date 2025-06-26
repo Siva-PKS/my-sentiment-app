@@ -116,16 +116,35 @@ if not st.session_state.processed:
 df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
+# 📋 Preview with styling for Negative sentiment rows
 st.subheader("📋 Preview")
+
+# Step 1: Add Email_Trigger column
+df["Email_Trigger"] = df["Sentiment"].apply(lambda s: "Yes" if s == "Negative" else "No")
+
+# Step 2: Highlight Negative rows
 def highlight_negative(row):
     if row["Sentiment"] == "Negative":
-        return ['background-color: #ffe6e6'] * len(row)  # light red
+        return ['background-color: #ffe6e6'] * len(row)
     else:
         return [''] * len(row)
-        
-cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response"] if col in df.columns]
+
+cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
+
+# Step 3: Email Trigger buttons for Negative reviews
+st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
+
+negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
+
+for idx, row in negative_df.iterrows():
+    with st.expander(f"✉️ Email for Review #{idx+1} - {row.get('Unique_ID', f'Row {idx+1}') if 'Unique_ID' in row else ''}"):
+        st.markdown(f"**Review:** {row['Review_text']}")
+        st.markdown(f"**Response to be sent:** {row['Response']}")
+        if st.button(f"📧 Send Email (Row {idx})"):
+            st.success(f"✅ Email sent for review #{idx+1}!")
+
 
 # Sentiment breakdown
 st.subheader("📊 Sentiment Breakdown")
