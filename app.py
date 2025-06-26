@@ -103,7 +103,7 @@ if not st.session_state.processed:
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
     df["Sentiment"] = sentiments
     df["Confidence"] = confidences
-    df["Email"] = df["Sentiment"].apply(lambda x: "Yes" if x == "Negative" else "---")
+    df["Email"] = df["Sentiment"].apply(lambda x: "Yes" if x == "Negative" else "No")
     responses = []
     for i, row in df.iterrows():
         sentiment = row["Sentiment"]
@@ -122,24 +122,25 @@ st.success("✅ Processing complete!")
 # 📋 Custom Preview Table with Buttons (for Negative Reviews)
 st.subheader("📋 Preview with Email Trigger Buttons")
 
-display_columns = ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email"]
+requested_display_columns = ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email"]
+display_columns = [col for col in requested_display_columns if col in df.columns]
 
-# Table Header
+# Header
 header_cols = st.columns(len(display_columns))
 for i, col in enumerate(display_columns):
     header_cols[i].markdown(f"**{col}**")
 
-# Table Rows
+# Table Body
 for i, row in df.iterrows():
     cols = st.columns(len(display_columns))
     for j, col_name in enumerate(display_columns):
-        cell_val = row[col_name] if col_name in row else ""
-        if isinstance(cell_val, str) and len(cell_val) > 150:
-            cell_val = cell_val[:150] + "..."
+        val = row[col_name] if col_name in row else ""
+        if isinstance(val, str) and len(val) > 150:
+            val = val[:150] + "..."
 
         style = ""
         if col_name in ["Unique_ID", "Sentiment", "Confidence"]:
-            style = "max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+            style = "max-width: 80px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
         elif col_name == "Response":
             style = "max-width: 300px;"
         else:
@@ -151,7 +152,7 @@ for i, row in df.iterrows():
         else:
             bg_color = "#ffe6e6" if row["Sentiment"] == "Negative" else "transparent"
             cols[j].markdown(
-                f"<div style='background-color:{bg_color}; padding:4px; {style}'>{cell_val}</div>",
+                f"<div style='background-color:{bg_color}; padding:4px; {style}'>{val}</div>",
                 unsafe_allow_html=True
             )
 
@@ -171,7 +172,7 @@ if "Category" in df.columns:
                   color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig2, use_container_width=True)
 
-# 🧮 Sortable Full Table for Exploration
+# 🔍 Sortable Data Preview
 st.subheader("🔍 Sortable Full Table")
 st.dataframe(df[display_columns], use_container_width=True)
 
