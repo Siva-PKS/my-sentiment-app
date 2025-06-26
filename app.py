@@ -129,21 +129,31 @@ header_cols = st.columns(len(display_columns))
 for i, col in enumerate(display_columns):
     header_cols[i].markdown(f"**{col}**")
 
-# Table Body with dynamic buttons
+# Table Body with formatting
 for i, row in df.iterrows():
     cols = st.columns(len(display_columns))
     for j, col_name in enumerate(display_columns):
+        cell_val = row[col_name] if col_name in row else ""
+        if isinstance(cell_val, str) and len(cell_val) > 150:
+            cell_val = cell_val[:150] + "..."
+
+        style = ""
+        if col_name in ["Unique_ID", "Sentiment", "Confidence"]:
+            style = "max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+        elif col_name == "Response":
+            style = "max-width: 300px;"
+        else:
+            style = "max-width: 200px;"
+
         if col_name == "Email_Trigger" and row["Sentiment"] == "Negative":
             if cols[j].button("📧 Send", key=f"send_{i}"):
                 st.success(f"✅ Email triggered for Row {i+1}")
         else:
-            val = row[col_name] if col_name in row else ""
-            if isinstance(val, str) and len(val) > 100:
-                val = val[:100] + "..."
-            if row["Sentiment"] == "Negative":
-                cols[j].markdown(f"<div style='background-color:#ffe6e6;padding:4px'>{val}</div>", unsafe_allow_html=True)
-            else:
-                cols[j].markdown(val)
+            bg_color = "#ffe6e6" if row["Sentiment"] == "Negative" else "transparent"
+            cols[j].markdown(
+                f"<div style='background-color:{bg_color}; padding:4px; {style}'>{cell_val}</div>",
+                unsafe_allow_html=True
+            )
 
 # 📊 Sentiment Breakdown
 st.subheader("📊 Sentiment Breakdown")
