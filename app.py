@@ -170,7 +170,19 @@ for idx, row in negative_df.iterrows():
             recipient_email = row.get("Email", "")
             if recipient_email:
                 subject = f"Response to your review (ID: {uid})"
-                body = row["Response"]
+                body = (
+                    f"Dear Customer,\n\n"
+                    f"Thank you for your feedback. Please find our response below.\n\n"
+                    f"---\n"
+                    f"Review Details:\n"
+                    f"ID: {uid}\n"
+                    f"Category: {row.get('Category', 'N/A')}\n"
+                    f"Date: {row.get('Date', 'N/A')}\n"
+                    f"Review:\n{row['Review_text']}\n\n"
+                    f"Our Response:\n{row['Response']}\n"
+                    f"---\n\n"
+                    f"Best regards,\nCustomer Support Team"
+                )
                 if send_email(recipient_email, subject, body):
                     st.success(f"✅ Email sent to {recipient_email}")
             else:
