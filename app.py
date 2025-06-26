@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -72,7 +71,7 @@ label_map = {
     "LABEL_2": "Positive"
 }
 
-# Modified function with confidence score
+# Sentiment analysis
 def analyze_all_sentiments(texts):
     results = sentiment_pipeline([t[:512] for t in texts], return_all_scores=True)
     labels, confidences = [], []
@@ -84,6 +83,7 @@ def analyze_all_sentiments(texts):
         confidences.append(confidence)
     return labels, confidences
 
+# Generate response
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
@@ -97,7 +97,7 @@ def generate_response(sentiment, review):
     llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
     return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
 
-# Process data if not already done
+# Process if not already done
 if not st.session_state.processed:
     progress_bar = st.progress(0)
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
@@ -105,42 +105,37 @@ if not st.session_state.processed:
     df["Confidence"] = confidences
     responses = []
     for i, row in df.iterrows():
-        sentiment = row["Sentiment"]
-        review = row["Review_text"]
-        responses.append(generate_response(sentiment, review))
+        responses.append(generate_response(row["Sentiment"], row["Review_text"]))
         progress_bar.progress((i + 1) / len(df))
     df["Response"] = responses
     df["Email_Trigger"] = df["Sentiment"].apply(lambda s: "Yes" if s == "Negative" else "No")
     st.session_state.df_processed = df.copy()
     st.session_state.processed = True
 
-# Use cached processed data
+# Use cached data
 df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
 
-# 📋 Preview with styling for Negative sentiment rows
+# 📋 Preview Table
 st.subheader("📋 Preview")
 
-# Highlight Negative rows
 def highlight_negative(row):
-    if row["Sentiment"] == "Negative":
-        return ['background-color: #ffe6e6'] * len(row)
-    else:
-        return [''] * len(row)
+    return ['background-color: #ffe6e6'] * len(row) if row["Sentiment"] == "Negative" else [''] * len(row)
 
-cols_to_show = [col for col in ["Unique_ID", "pur_date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
+cols_to_show = [col for col in ["Unique_ID", "date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
-# 📬 Email Trigger Section
+# 📬 Trigger Email Section
 st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
 negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
 for idx, row in negative_df.iterrows():
-    with st.expander(f"✉️ Email for Review #{idx+1} - {row.get('Unique_ID', f'Row {idx+1}') if 'Unique_ID' in row else ''}"):
-        st.markdown(f"**Category:** {row['Category']}" if 'Category' in row else "**Category:** N/A")
-        st.markdown(f"**Date:** {row['pur_date']}" if 'pur_date' in row else "**Date:** N/A")
+    uid = row.get('Unique_ID', f'Row {idx+1}')
+    with st.expander(f"✉️ Email for Review #{idx+1} - {uid}"):
+        st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
+        st.markdown(f"**Date:** {row.get('date', 'N/A')}")
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
         if st.button(f"📧 Send Email (Row {idx})"):
@@ -162,7 +157,7 @@ if "Category" in df.columns:
                   color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig2, use_container_width=True)
 
-# ⬇️ CSV Download
+# ⬇️ Download button
 st.download_button(
     label="⬇️ Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
