@@ -4,6 +4,10 @@ import plotly.express as px
 from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import warnings
 
 # Fix torch Streamlit bug
 try:
@@ -11,11 +15,34 @@ try:
 except AttributeError:
     pass
 
-import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
+
+# Email Configuration - 🔒 Update these securely
+SMTP_SERVER = "smtp.gmail.com"
+SMTP_PORT = 587
+SENDER_EMAIL = "spkincident@gmail.com"          # 🔁 Replace with your email
+SENDER_PASSWORD = "st.secrets["email_password"]"    # 🔁 Use Gmail app password (not your actual password)
+
+# Email sending function
+def send_email(recipient_email, subject, body):
+    try:
+        msg = MIMEMultipart()
+        msg["From"] = SENDER_EMAIL
+        msg["To"] = recipient_email
+        msg["Subject"] = subject
+        msg.attach(MIMEText(body, "plain"))
+
+        with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+            server.starttls()
+            server.login(SENDER_EMAIL, SENDER_PASSWORD)
+            server.send_message(msg)
+        return True
+    except Exception as e:
+        st.error(f"❌ Failed to send email: {e}")
+        return False
 
 # Session state setup
 for key in ["processed", "last_uploaded_filename"]:
@@ -123,7 +150,7 @@ st.subheader("📋 Preview")
 def highlight_negative(row):
     return ['background-color: #ffe6e6'] * len(row) if row["Sentiment"] == "Negative" else [''] * len(row)
 
-cols_to_show = [col for col in ["Unique_ID", "date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
+cols_to_show = [col for col in ["Unique_ID", "date", "pur_date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
@@ -136,10 +163,19 @@ for idx, row in negative_df.iterrows():
     with st.expander(f"✉️ Email for Review #{idx+1} - {uid}"):
         st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
         st.markdown(f"**Date:** {row.get('date', 'N/A')}")
+        st.markdown(f"**Purchase Date:** {row.get('pur_date', 'N/A')}")
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
+
         if st.button(f"📧 Send Email (Row {idx})"):
-            st.success(f"✅ Email sent for review #{idx+1}!")
+            recipient_email = row.get("Email", "")
+            if recipient_email:
+                subject = f"Response to your review (ID: {uid})"
+                body = row["Response"]
+                if send_email(recipient_email, subject, body):
+                    st.success(f"✅ Email sent to {recipient_email}")
+            else:
+                st.warning("⚠️ No email address found in this row.")
 
 # 📊 Sentiment Breakdown
 st.subheader("📊 Sentiment Breakdown")
