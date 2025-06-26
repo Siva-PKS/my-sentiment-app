@@ -103,7 +103,7 @@ if not st.session_state.processed:
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
     df["Sentiment"] = sentiments
     df["Confidence"] = confidences
-    df["Email_Trigger"] = df["Sentiment"].apply(lambda x: "Yes" if x == "Negative" else "No")
+    df["Email"] = df["Sentiment"].apply(lambda x: "Yes" if x == "Negative" else "---")
     responses = []
     for i, row in df.iterrows():
         sentiment = row["Sentiment"]
@@ -119,17 +119,17 @@ df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
 
-# 📋 Custom Table with Dynamic Email Buttons
+# 📋 Custom Preview Table with Buttons (for Negative Reviews)
 st.subheader("📋 Preview with Email Trigger Buttons")
 
-display_columns = ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"]
+display_columns = ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email"]
 
 # Table Header
 header_cols = st.columns(len(display_columns))
 for i, col in enumerate(display_columns):
     header_cols[i].markdown(f"**{col}**")
 
-# Table Body with formatting
+# Table Rows
 for i, row in df.iterrows():
     cols = st.columns(len(display_columns))
     for j, col_name in enumerate(display_columns):
@@ -145,7 +145,7 @@ for i, row in df.iterrows():
         else:
             style = "max-width: 200px;"
 
-        if col_name == "Email_Trigger" and row["Sentiment"] == "Negative":
+        if col_name == "Email" and row["Sentiment"] == "Negative":
             if cols[j].button("📧 Send", key=f"send_{i}"):
                 st.success(f"✅ Email triggered for Row {i+1}")
         else:
@@ -170,6 +170,10 @@ if "Category" in df.columns:
     fig2 = px.bar(grouped, x="Category", y="Count", color="Sentiment", barmode="group",
                   color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig2, use_container_width=True)
+
+# 🧮 Sortable Full Table for Exploration
+st.subheader("🔍 Sortable Full Table")
+st.dataframe(df[display_columns], use_container_width=True)
 
 # ⬇️ CSV Download
 st.download_button(
