@@ -71,7 +71,7 @@ label_map = {
     "LABEL_2": "Positive"
 }
 
-# Modified function with confidence score
+# Sentiment analysis with confidence score
 def analyze_all_sentiments(texts):
     results = sentiment_pipeline([t[:512] for t in texts], return_all_scores=True)
     labels, confidences = [], []
@@ -83,6 +83,7 @@ def analyze_all_sentiments(texts):
         confidences.append(confidence)
     return labels, confidences
 
+# LLM response generation
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
@@ -96,12 +97,13 @@ def generate_response(sentiment, review):
     llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
     return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
 
-# Process data if not already done
+# Processing step
 if not st.session_state.processed:
     progress_bar = st.progress(0)
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
     df["Sentiment"] = sentiments
     df["Confidence"] = confidences
+    df["Email_Trigger"] = df["Sentiment"].apply(lambda x: "Yes" if x == "Negative" else "No")
     responses = []
     for i, row in df.iterrows():
         sentiment = row["Sentiment"]
@@ -116,37 +118,34 @@ if not st.session_state.processed:
 df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
-# 📋 Preview with styling for Negative sentiment rows
-st.subheader("📋 Preview")
 
-# Step 1: Add Email_Trigger column
-df["Email_Trigger"] = df["Sentiment"].apply(lambda s: "Yes" if s == "Negative" else "No")
+# 📋 Custom Table with Dynamic Email Buttons
+st.subheader("📋 Preview with Email Trigger Buttons")
 
-# Step 2: Highlight Negative rows
-def highlight_negative(row):
-    if row["Sentiment"] == "Negative":
-        return ['background-color: #ffe6e6'] * len(row)
-    else:
-        return [''] * len(row)
+display_columns = ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"]
 
-cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
-styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
-st.dataframe(styled_df, use_container_width=True)
+# Table Header
+header_cols = st.columns(len(display_columns))
+for i, col in enumerate(display_columns):
+    header_cols[i].markdown(f"**{col}**")
 
-# Step 3: Email Trigger buttons for Negative reviews
-st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
+# Table Body with dynamic buttons
+for i, row in df.iterrows():
+    cols = st.columns(len(display_columns))
+    for j, col_name in enumerate(display_columns):
+        if col_name == "Email_Trigger" and row["Sentiment"] == "Negative":
+            if cols[j].button("📧 Send", key=f"send_{i}"):
+                st.success(f"✅ Email triggered for Row {i+1}")
+        else:
+            val = row[col_name] if col_name in row else ""
+            if isinstance(val, str) and len(val) > 100:
+                val = val[:100] + "..."
+            if row["Sentiment"] == "Negative":
+                cols[j].markdown(f"<div style='background-color:#ffe6e6;padding:4px'>{val}</div>", unsafe_allow_html=True)
+            else:
+                cols[j].markdown(val)
 
-negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
-
-for idx, row in negative_df.iterrows():
-    with st.expander(f"✉️ Email for Review #{idx+1} - {row.get('Unique_ID', f'Row {idx+1}') if 'Unique_ID' in row else ''}"):
-        st.markdown(f"**Review:** {row['Review_text']}")
-        st.markdown(f"**Response to be sent:** {row['Response']}")
-        if st.button(f"📧 Send Email (Row {idx})"):
-            st.success(f"✅ Email sent for review #{idx+1}!")
-
-
-# Sentiment breakdown
+# 📊 Sentiment Breakdown
 st.subheader("📊 Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
@@ -154,7 +153,7 @@ fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# 🔄 Added: Sentiment by Category
+# 📈 Sentiment by Category
 if "Category" in df.columns:
     st.subheader("📈 Sentiment by Category")
     grouped = df.groupby(["Category", "Sentiment"]).size().reset_index(name="Count")
@@ -162,7 +161,7 @@ if "Category" in df.columns:
                   color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig2, use_container_width=True)
 
-# CSV Download
+# ⬇️ CSV Download
 st.download_button(
     label="⬇️ Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
