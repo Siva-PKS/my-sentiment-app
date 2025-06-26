@@ -14,7 +14,6 @@ except AttributeError:
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
-
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
@@ -72,10 +71,17 @@ label_map = {
     "LABEL_2": "Positive"
 }
 
-# Fast sentiment analysis (batch)
+# Modified function with confidence score
 def analyze_all_sentiments(texts):
-    results = sentiment_pipeline([t[:512] for t in texts])
-    return [label_map.get(res["label"], "Unknown") for res in results]
+    results = sentiment_pipeline([t[:512] for t in texts], return_all_scores=True)
+    labels, confidences = [], []
+    for res in results:
+        top = max(res, key=lambda x: x['score'])
+        label = label_map.get(top['label'], "Unknown")
+        confidence = round(top['score'], 2)
+        labels.append(label)
+        confidences.append(confidence)
+    return labels, confidences
 
 def generate_response(sentiment, review):
     if sentiment != "Negative":
@@ -93,7 +99,9 @@ def generate_response(sentiment, review):
 # Process data if not already done
 if not st.session_state.processed:
     progress_bar = st.progress(0)
-    df["Sentiment"] = analyze_all_sentiments(df["Review_text"].tolist())
+    sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
+    df["Sentiment"] = sentiments
+    df["Confidence"] = confidences
     responses = []
     for i, row in df.iterrows():
         sentiment = row["Sentiment"]
@@ -109,7 +117,7 @@ df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
 st.subheader("📋 Preview")
-cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Response"] if col in df.columns]
+cols_to_show = [col for col in ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response"] if col in df.columns]
 st.dataframe(df[cols_to_show], use_container_width=True)
 
 # Sentiment breakdown
