@@ -49,8 +49,9 @@ for key in ["processed", "last_uploaded_filename"]:
     if key not in st.session_state:
         st.session_state[key] = None if key == "last_uploaded_filename" else False
 
-if "open_expanders" not in st.session_state:
-    st.session_state.open_expanders = {}
+if "open_expander_index" not in st.session_state:
+    st.session_state.open_expander_index = None
+
 
 
 uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
@@ -165,9 +166,8 @@ negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 for idx, row in negative_df.iterrows():
     uid = row.get('Unique_ID', f'Row {idx+1}')
     expander_key = f"expander_{idx}"
-    
-    # Default to open if recently emailed or previously opened
-    expanded = st.session_state.open_expanders.get(expander_key, False)
+
+    expanded = st.session_state.open_expander_index == idx
 
     with st.expander(f"✉️ Email for Review #{idx+1} - {uid}", expanded=expanded):
         st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
@@ -175,9 +175,9 @@ for idx, row in negative_df.iterrows():
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
 
-        if st.button(f"📧 Send Email (Row {idx})"):
+        if st.button(f"📧 Send Email (Row {idx})", key=f"send_button_{idx}"):
             recipient_email = row.get("Email", "")
-            st.session_state.open_expanders[expander_key] = True  # Keep it open
+            st.session_state.open_expander_index = idx  # Track which one should stay open
 
             if recipient_email:
                 subject = f"Response to your review (ID: {uid})"
@@ -198,7 +198,6 @@ for idx, row in negative_df.iterrows():
                     st.success(f"✅ Email sent to {recipient_email}")
             else:
                 st.warning("⚠️ No Email address found in this row.")
-
 
 # 📊 Sentiment Breakdown
 st.subheader("📊 Sentiment Breakdown")
