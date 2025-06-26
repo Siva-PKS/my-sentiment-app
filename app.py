@@ -150,7 +150,7 @@ st.subheader("📋 Preview")
 def highlight_negative(row):
     return ['background-color: #ffe6e6'] * len(row) if row["Sentiment"] == "Negative" else [''] * len(row)
 
-cols_to_show = [col for col in ["Unique_ID", "date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
+cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
@@ -162,7 +162,7 @@ for idx, row in negative_df.iterrows():
     uid = row.get('Unique_ID', f'Row {idx+1}')
     with st.expander(f"✉️ Email for Review #{idx+1} - {uid}"):
         st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
-        st.markdown(f"**Date:** {row.get('date', 'N/A')}")      
+        st.markdown(f"**Date:** {row.get('Date', 'N/A')}")      
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
 
@@ -174,7 +174,7 @@ for idx, row in negative_df.iterrows():
                 if send_email(recipient_email, subject, body):
                     st.success(f"✅ Email sent to {recipient_email}")
             else:
-                st.warning("⚠️ No email address found in this row.")
+                st.warning("⚠️ No Email address found in this row.")
 
 # 📊 Sentiment Breakdown
 st.subheader("📊 Sentiment Breakdown")
