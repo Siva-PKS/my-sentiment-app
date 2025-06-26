@@ -24,7 +24,7 @@ st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "spkincident@gmail.com"          # 🔁 Replace with your email
-SENDER_PASSWORD = "st.secrets["email_password"]"    # 🔁 Use Gmail app password (not your actual password)
+SENDER_PASSWORD = st.secrets["email_password"]    # 🔁 Use Gmail app password (not your actual password)
 
 # Email sending function
 def send_email(recipient_email, subject, body):
