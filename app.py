@@ -71,7 +71,7 @@ label_map = {
     "LABEL_2": "Positive"
 }
 
-# Sentiment analysis with confidence score
+# Modified function with confidence score
 def analyze_all_sentiments(texts):
     results = sentiment_pipeline([t[:512] for t in texts], return_all_scores=True)
     labels, confidences = [], []
@@ -83,7 +83,6 @@ def analyze_all_sentiments(texts):
         confidences.append(confidence)
     return labels, confidences
 
-# LLM response generation
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
@@ -97,7 +96,7 @@ def generate_response(sentiment, review):
     llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
     return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
 
-# Processing step
+# Process data if not already done
 if not st.session_state.processed:
     progress_bar = st.progress(0)
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
@@ -119,31 +118,35 @@ df = st.session_state.df_processed
 
 st.success("✅ Processing complete!")
 
-# 📋 Custom Table with Dynamic Email Buttons
-st.subheader("📋 Preview with Email Trigger Buttons")
+# 📋 Preview with styling for Negative sentiment rows
+st.subheader("📋 Preview")
 
-display_columns = ["Unique_ID", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"]
+# Define display columns
+display_columns = ["Unique_ID", "date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"]
+cols_to_show = [col for col in display_columns if col in df.columns]
 
-# Table Header
-header_cols = st.columns(len(display_columns))
-for i, col in enumerate(display_columns):
-    header_cols[i].markdown(f"**{col}**")
+# Highlight rows where Sentiment is Negative
+def highlight_negative(row):
+    if row["Sentiment"] == "Negative":
+        return ['background-color: #ffe6e6'] * len(row)
+    else:
+        return [''] * len(row)
 
-# Table Body with dynamic buttons
-for i, row in df.iterrows():
-    cols = st.columns(len(display_columns))
-    for j, col_name in enumerate(display_columns):
-        if col_name == "Email_Trigger" and row["Sentiment"] == "Negative":
-            if cols[j].button("📧 Send", key=f"send_{i}"):
-                st.success(f"✅ Email triggered for Row {i+1}")
-        else:
-            val = row[col_name] if col_name in row else ""
-            if isinstance(val, str) and len(val) > 100:
-                val = val[:100] + "..."
-            if row["Sentiment"] == "Negative":
-                cols[j].markdown(f"<div style='background-color:#ffe6e6;padding:4px'>{val}</div>", unsafe_allow_html=True)
-            else:
-                cols[j].markdown(val)
+styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
+st.dataframe(styled_df, use_container_width=True)
+
+# 📬 Trigger Email Actions
+st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
+negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
+
+for idx, row in negative_df.iterrows():
+    with st.expander(f"✉️ Email for Review #{idx+1} - {row.get('Unique_ID', f'Row {idx+1}') if 'Unique_ID' in row else ''}"):
+        if "date" in row:
+            st.markdown(f"**Date:** {row['date']}")
+        st.markdown(f"**Review:** {row['Review_text']}")
+        st.markdown(f"**Response to be sent:** {row['Response']}")
+        if st.button(f"📧 Send Email (Row {idx})"):
+            st.success(f"✅ Email sent for review #{idx+1}!")
 
 # 📊 Sentiment Breakdown
 st.subheader("📊 Sentiment Breakdown")
