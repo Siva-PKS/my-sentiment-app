@@ -140,10 +140,12 @@ negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
 for idx, row in negative_df.iterrows():
     with st.expander(f"✉️ Email for Review #{idx+1} - {row.get('Unique_ID', f'Row {idx+1}') if 'Unique_ID' in row else ''}"):
+        st.markdown(f"**Category:** {row['Category']}" if 'Category' in row else "**Category:** N/A")
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
         if st.button(f"📧 Send Email (Row {idx})"):
             st.success(f"✅ Email sent for review #{idx+1}!")
+
 
 
 # Sentiment breakdown
