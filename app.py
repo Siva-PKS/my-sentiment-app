@@ -35,6 +35,17 @@ SENDER_EMAIL = "spkincident@gmail.com"
 SENDER_PASSWORD = st.secrets["email_password"]  # Gmail App Password
 
 # =============================
+# Path for the negative reviews log file
+# =============================
+log_file_path = "negative_reviews.log"
+
+# Ensure the log file exists at startup (prevents FileNotFoundError)
+if not os.path.exists(log_file_path):
+    with open(log_file_path, "w") as f:
+        pass  # Creates an empty file
+        
+
+# =============================
 # Utility Functions
 # =============================
 def send_email(recipient_email: str, subject: str, body: str) -> bool:
@@ -296,6 +307,17 @@ for idx, row in negative_df.iterrows():
                 st.warning("⚠️ No Email address found in this row.")
 
 # =============================
+ # Log the negative review for future reference
+# =============================
+   
+    with open("negative_reviews.log", "a", encoding="utf-8") as log_file:
+        log_file.write(f"Review: {review_text}\n")
+        log_file.write(f"Sentiment: {sentiment_label}\n")
+        log_file.write(f"Generated Response: {response_text}\n")
+        log_file.write("-" * 50 + "\n")
+
+
+# =============================
 # Charts
 # =============================
 st.subheader("📊 Sentiment Breakdown")
@@ -322,15 +344,10 @@ st.download_button(
     mime="text/csv"
 )
 
-# Path for the negative reviews log file
-log_file_path = "negative_reviews.log"
-
-# Ensure the log file exists at startup (prevents FileNotFoundError)
-if not os.path.exists(log_file_path):
-    with open(log_file_path, "w") as f:
-        pass  # Creates an empty file
-
+# =============================
 # Display log download button (only if file has content)
+# =============================
+
 if os.path.getsize(log_file_path) > 0:
     with open(log_file_path, "r") as f:
         st.download_button(
