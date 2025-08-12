@@ -176,7 +176,7 @@ for idx, row in negative_df.iterrows():
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
 
-       def log_negative_review(row):
+   def log_negative_review(row):
     """Append negative review details to a log file."""
     with open("negative_reviews.log", "a", encoding="utf-8") as log_file:
         log_file.write(
