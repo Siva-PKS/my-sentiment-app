@@ -287,8 +287,11 @@ for idx, row in negative_df.iterrows():
             st.session_state.open_expander_index = idx
 
              # ✅ Log the negative review before sending email
-              if sentiment_label.lower() == "negative":
-                  log_negative_review(row)  # aligned correctly
+                for row in data:
+                    sentiment_label = analyze(row)
+                    if sentiment_label.lower() == "negative":
+                        log_negative_review(row)
+
             
             if recipient_email:
                 subject = f"Response to your review (ID: {uid})"
