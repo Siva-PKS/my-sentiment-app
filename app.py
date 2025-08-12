@@ -322,18 +322,23 @@ st.download_button(
     mime="text/csv"
 )
 
-# Open the 'negative_reviews.log' file in read mode ('r')
-# This assumes the file is in the same directory as your app.py file
-with open("negative_reviews.log", "r") as f:
+# Path for the negative reviews log file
+log_file_path = "negative_reviews.log"
 
-    # Create a Streamlit download button so users can download the log file
-    # Parameters:
-    # - "Download Log": The text shown on the button
-    # - f: The file object opened above
-    # - file_name="negative_reviews.log": The name the file will have when downloaded
-    st.download_button(
-        "Download Log",
-        f,
-        file_name="negative_reviews.log"
-    )
+# Ensure the log file exists at startup (prevents FileNotFoundError)
+if not os.path.exists(log_file_path):
+    with open(log_file_path, "w") as f:
+        pass  # Creates an empty file
+
+# Display log download button (only if file has content)
+if os.path.getsize(log_file_path) > 0:
+    with open(log_file_path, "r") as f:
+        st.download_button(
+            label="Download Negative Reviews Log",
+            data=f,
+            file_name="negative_reviews.log",
+            mime="text/plain"
+        )
+else:
+    st.info("No negative reviews have been logged yet.")
 
