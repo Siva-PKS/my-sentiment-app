@@ -310,8 +310,10 @@ for idx, row in negative_df.iterrows():
  # Log the negative review for future reference
 # =============================
    
+   # Log only if sentiment is negative
+if sentiment_label.lower() == "negative":
     with open("negative_reviews.log", "a", encoding="utf-8") as log_file:
-        log_file.write(f"Review: {review_text}\n")
+        log_file.write(f"Review: {user_input}\n")
         log_file.write(f"Sentiment: {sentiment_label}\n")
         log_file.write(f"Generated Response: {response_text}\n")
         log_file.write("-" * 50 + "\n")
