@@ -347,17 +347,12 @@ st.download_button(
 )
 
 # =============================
-# Display log download button (only if file has content)
+# Download Logged Negative Reviews
 # =============================
 
-if os.path.getsize(log_file_path) > 0:
-    with open(log_file_path, "r") as f:
-        st.download_button(
-            label="Download Negative Reviews Log",
-            data=f,
-            file_name="negative_reviews.log",
-            mime="text/plain"
-        )
+st.subheader("Download Logged Negative Reviews")
+if os.path.exists("negative_reviews.log"):
+    with open("negative_reviews.log", "rb") as f:
+        st.download_button("Download Log", f, file_name="negative_reviews.log")
 else:
     st.info("No negative reviews have been logged yet.")
-
