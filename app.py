@@ -321,3 +321,19 @@ st.download_button(
     file_name="sentiment_responses.csv",
     mime="text/csv"
 )
+
+# Open the 'negative_reviews.log' file in read mode ('r')
+# This assumes the file is in the same directory as your app.py file
+with open("negative_reviews.log", "r") as f:
+
+    # Create a Streamlit download button so users can download the log file
+    # Parameters:
+    # - "Download Log": The text shown on the button
+    # - f: The file object opened above
+    # - file_name="negative_reviews.log": The name the file will have when downloaded
+    st.download_button(
+        "Download Log",
+        f,
+        file_name="negative_reviews.log"
+    )
+
