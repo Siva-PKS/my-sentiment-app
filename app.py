@@ -164,18 +164,7 @@ st.dataframe(styled_df, use_container_width=True)
 st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
 negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
-for idx, row in negative_df.iterrows():
-    uid = row.get('Unique_ID', f'Row {idx+1}')
-    expander_key = f"expander_{idx}"
-
-    expanded = st.session_state.open_expander_index == idx
-
-    with st.expander(f"✉️ Email for Review #{idx+1} - {uid}", expanded=expanded):
-        st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
-        st.markdown(f"**Date:** {row.get('Date', 'N/A')}")
-        st.markdown(f"**Review:** {row['Review_text']}")
-        st.markdown(f"**Response to be sent:** {row['Response']}")
-   def log_negative_review(row):
+def log_negative_review(row):
     """Append negative review details to a log file."""
     with open("negative_reviews.log", "a", encoding="utf-8") as log_file:
         log_file.write(
@@ -187,6 +176,18 @@ for idx, row in negative_df.iterrows():
             f"Response: {row['Response']}\n"
             f"{'-'*50}\n"
         )
+
+for idx, row in negative_df.iterrows():
+    uid = row.get('Unique_ID', f'Row {idx+1}')
+    expander_key = f"expander_{idx}"
+
+    expanded = st.session_state.open_expander_index == idx
+
+    with st.expander(f"✉️ Email for Review #{idx+1} - {uid}", expanded=expanded):
+        st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
+        st.markdown(f"**Date:** {row.get('Date', 'N/A')}")
+        st.markdown(f"**Review:** {row['Review_text']}")
+        st.markdown(f"**Response to be sent:** {row['Response']}")   
 
 # Inside the Send Email button loop
 if st.button(f"📧 Send Email (Row {idx})", key=f"send_button_{idx}"):
