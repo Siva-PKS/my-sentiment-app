@@ -236,9 +236,11 @@ if "Category" in df.columns:
 # ---------------------------
 # Download button
 # ---------------------------
+download_df = df.drop(columns=["Processing_Time_sec"], errors="ignore")  # remove column if exists
+
 st.download_button(
     label="Download CSV",
-    data=df.to_csv(index=False).encode("utf-8"),
+    data=download_df.to_csv(index=False).encode("utf-8"),
     file_name="sentiment_responses.csv",
     mime="text/csv"
 )
