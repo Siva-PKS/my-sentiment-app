@@ -4,13 +4,13 @@ This **Streamlit** app analyzes customer reviews, detects sentiment using a tran
 
 ---
 
-## 🚀 Features
+##  Features
 
 - **Sentiment Detection**: Classifies reviews as Positive, Neutral, or Negative using `twitter-roberta-base-sentiment`.
 - **LLM Response Generation**: Auto-generates a short, helpful reply for each negative review using `google/flan-t5-small`.
 - **CSV Upload & Preview**: Upload your own CSV (with `Review_text` column) or use the provided sample.
 - **Visual Breakdown**: Displays sentiment distribution via interactive bar chart.
-- ⬇**Downloadable Results**: Export processed reviews, sentiments, and responses to CSV.
+- **Downloadable Results**: Export processed reviews, sentiments, and responses to CSV.
 
 ---
 
