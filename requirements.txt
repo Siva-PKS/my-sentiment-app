@@ -6,6 +6,7 @@ torch==2.2.1
 numpy<2.0
 plotly
 sentencepiece  # <-- required for models like T5, XLM-R
+scikit-learn
 
 # Optional: Faster CSV reading
 pyarrow
