@@ -176,9 +176,9 @@ styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
 # ---------------------------
-# 📊 Measurable Success Criteria
+# Measurable Success Criteria
 # ---------------------------
-st.subheader("📈 Measurable Success Criteria")
+st.subheader("Measurable Success Criteria")
 
 y_true = df["Sentiment"].tolist()   # In real use: ground truth column from CSV
 y_pred = df["Sentiment"].tolist()
@@ -221,6 +221,27 @@ chart_data.columns = ["Sentiment", "Count"]
 fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------
+# Sentiment Breakdown
+# ---------------------------
+st.subheader("Sentiment Breakdown")
+chart_data = df["Sentiment"].value_counts().reset_index()
+chart_data.columns = ["Sentiment", "Count"]
+fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
+             color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
+st.plotly_chart(fig, use_container_width=True)
+
+# ---------------------------
+# Sentiment by Category
+# ---------------------------
+if "Category" in df.columns:
+    st.subheader("Sentiment by Category")
+    grouped = df.groupby(["Category", "Sentiment"]).size().reset_index(name="Count")
+    fig2 = px.bar(grouped, x="Category", y="Count", color="Sentiment", barmode="group",
+                  color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
+    st.plotly_chart(fig2, use_container_width=True)
+
 
 # ---------------------------
 # Download button
