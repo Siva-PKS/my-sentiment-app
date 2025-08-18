@@ -223,16 +223,6 @@ fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
 st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
-# Sentiment Breakdown
-# ---------------------------
-st.subheader("Sentiment Breakdown")
-chart_data = df["Sentiment"].value_counts().reset_index()
-chart_data.columns = ["Sentiment", "Count"]
-fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
-             color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
-st.plotly_chart(fig, use_container_width=True)
-
-# ---------------------------
 # Sentiment by Category
 # ---------------------------
 if "Category" in df.columns:
