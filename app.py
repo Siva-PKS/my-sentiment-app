@@ -20,7 +20,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hu
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("📊 Customer Review Sentiment Analyzer & Auto-Responder")
 
-# Email Configuration - 🔒 Update these securely
+# Email Configuration - Update these securely
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "spkincident@gmail.com"          # 🔁 Replace with your email
@@ -41,7 +41,7 @@ def send_email(recipient_email, subject, body):
             server.send_message(msg)
         return True
     except Exception as e:
-        st.error(f"❌ Failed to send email: {e}")
+        st.error(f"Failed to send email: {e}")
         return False
 
 # Session state setup
@@ -65,21 +65,21 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file)
 else:
     if os.path.exists(sample_data_path):
-        st.success("✅ Using 'sample_data.csv' from directory.")
+        st.success("Using 'sample_data.csv' from directory.")
         df = pd.read_csv(sample_data_path)
     else:
-        st.error("❌ 'sample_data.csv' not found. Please upload a CSV.")
+        st.error("'sample_data.csv' not found. Please upload a CSV.")
         st.stop()
 
 # Validation
 if df.empty or "Review_text" not in df.columns:
-    st.error("❌ Missing or empty 'Review_text' column.")
+    st.error("Missing or empty 'Review_text' column.")
     st.stop()
 
 # Limit rows for demo speed
 MAX_ROWS = 100
 if len(df) > MAX_ROWS:
-    st.warning(f"⚠️ Limiting to first {MAX_ROWS} rows for demo.")
+    st.warning(f"Limiting to first {MAX_ROWS} rows for demo.")
     df = df.head(MAX_ROWS)
 
 # Load models
@@ -147,10 +147,10 @@ if not st.session_state.processed:
 # Use cached data
 df = st.session_state.df_processed
 
-st.success("✅ Processing complete!")
+st.success("Processing complete!")
 
-# 📋 Preview Table
-st.subheader("📋 Preview")
+# Preview Table
+st.subheader("Preview")
 
 def highlight_negative(row):
     return ['background-color: #ffe6e6'] * len(row) if row["Sentiment"] == "Negative" else [''] * len(row)
@@ -159,8 +159,8 @@ cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text", 
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
-# 📬 Trigger Email Section
-st.subheader("📬 Trigger Email Actions (Only for Negative Reviews)")
+# Trigger Email Section
+st.subheader("Trigger Email Actions (Only for Negative Reviews)")
 negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
 for idx, row in negative_df.iterrows():
@@ -169,13 +169,13 @@ for idx, row in negative_df.iterrows():
 
     expanded = st.session_state.open_expander_index == idx
 
-    with st.expander(f"✉️ Email for Review #{idx+1} - {uid}", expanded=expanded):
+    with st.expander(f"Email for Review #{idx+1} - {uid}", expanded=expanded):
         st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
         st.markdown(f"**Date:** {row.get('Date', 'N/A')}")
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
 
-        if st.button(f"📧 Send Email (Row {idx})", key=f"send_button_{idx}"):
+        if st.button(f"Send Email (Row {idx})", key=f"send_button_{idx}"):
             recipient_email = row.get("Email", "")
             st.session_state.open_expander_index = idx  # Track which one should stay open
 
@@ -195,29 +195,29 @@ for idx, row in negative_df.iterrows():
                     f"Best regards,\nCustomer Support Team"
                 )
                 if send_email(recipient_email, subject, body):
-                    st.success(f"✅ Email sent to {recipient_email}")
+                    st.success(f"Email sent to {recipient_email}")
             else:
-                st.warning("⚠️ No Email address found in this row.")
+                st.warning("No Email address found in this row.")
 
-# 📊 Sentiment Breakdown
-st.subheader("📊 Sentiment Breakdown")
+# Sentiment Breakdown
+st.subheader("Sentiment Breakdown")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
 fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
              color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig, use_container_width=True)
 
-# 📈 Sentiment by Category
+# Sentiment by Category
 if "Category" in df.columns:
-    st.subheader("📈 Sentiment by Category")
+    st.subheader("Sentiment by Category")
     grouped = df.groupby(["Category", "Sentiment"]).size().reset_index(name="Count")
     fig2 = px.bar(grouped, x="Category", y="Count", color="Sentiment", barmode="group",
                   color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
     st.plotly_chart(fig2, use_container_width=True)
 
-# ⬇️ Download button
+# Download button
 st.download_button(
-    label="⬇️ Download CSV",
+    label="Download CSV",
     data=df.to_csv(index=False).encode("utf-8"),
     file_name="sentiment_responses.csv",
     mime="text/csv"
