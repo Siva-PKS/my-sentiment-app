@@ -171,7 +171,7 @@ st.subheader("Preview")
 def highlight_negative(row):
     return ['background-color: #ffe6e6'] * len(row) if row["Sentiment"] == "Negative" else [''] * len(row)
 
-cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger", "Processing_Time_sec"] if col in df.columns]
+cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
