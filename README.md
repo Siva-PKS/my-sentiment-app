@@ -1,16 +1,34 @@
-# Customer Review Sentiment Analyzer & Auto-Responder
+# Customer Review Sentiment Analyzer & Auto‑Responder
 
-This **Streamlit** app analyzes customer reviews, detects sentiment using a transformer model, and auto-generates polite, professional responses to **negative feedback** using a local LLM (FLAN-T5). It helps support teams triage reviews and improve customer experience with minimal manual effort.
+A Streamlit app that ingests customer reviews, detects sentiment with a transformer model, and **auto‑generates polite, professional replies to negative feedback** using a local LLM (FLAN‑T5). It helps support teams triage reviews and improve customer experience with minimal manual effort. It can also **send the generated replies via email** (SMTP), one review at a time.
 
 ---
 
 ##  Features
 
-- **Sentiment Detection**: Classifies reviews as Positive, Neutral, or Negative using `twitter-roberta-base-sentiment`.
-- **LLM Response Generation**: Auto-generates a short, helpful reply for each negative review using `google/flan-t5-small`.
-- **CSV Upload & Preview**: Upload your own CSV (with `Review_text` column) or use the provided sample.
-- **Visual Breakdown**: Displays sentiment distribution via interactive bar chart.
-- **Downloadable Results**: Export processed reviews, sentiments, and responses to CSV.
+-- **Sentiment Detection**
+Classifies each review as Positive / Neutral / Negative using cardiffnlp/twitter-roberta-base-sentiment.
+
+-- **LLM Response Generation (local)**
+For Negative reviews, creates a short, empathetic reply via google/flan-t5-small (runs locally; no external API keys needed).
+
+-- **Email Sending (SMTP)**
+One‑click Send Email button (per negative review) that emails the generated reply to the address in your CSV.
+
+-- **CSV Upload & Preview**
+Upload your own CSV (must contain a Review_text column) or use sample_data.csv in the repo. Preview table highlights negative rows.
+
+-- **Progress & Caching**
+Visual progress bar while processing; models are cached with @st.cache_resource to speed up subsequent runs.
+
+-- **Metrics Dashboard**
+Shows demo metrics (accuracy placeholder, avg. processing time, volume estimate, satisfaction & action‑time placeholders).
+
+-- **Visual Breakdown**
+Interactive Plotly bar charts for overall sentiment distribution and per‑category breakdown (if Category column exists).
+
+-- **Downloadable Results**
+Export processed data (including Sentiment, Confidence, Response, Email_Trigger) as CSV.
 
 ---
 
@@ -24,8 +42,11 @@ This **Streamlit** app analyzes customer reviews, detects sentiment using a tran
 
 ##  Requirements
 
-Install required packages:
-pip install streamlit pandas plotly transformers torch
+Python 3.9–3.11
+
+Install packages:
+pip install streamlit pandas plotly transformers torch scikit-learn
+- The first run will download Hugging Face models (~ a few hundred MB). They are cached for later runs.
 
 ## How to Run
 
@@ -61,6 +82,16 @@ The app shows a dynamic bar chart like:
 ##  Export
 
 You can download the full dataset with generated columns (Sentiment, Response) as a CSV using the Download CSV button.
+
+## Known Limits & Notes
+
+**Demo Row Cap:** App limits to the first 100 rows to keep the demo snappy. Adjust MAX_ROWS in app.py as needed.
+
+**LLM Scope:** flan-t5-small keeps things local but is small; you can swap in a larger T5 or other models if you have resources/GPU.
+
+**Torch + Streamlit:** The app includes a small workaround for a historical torch._classes issue.
+
+**Accuracy Metric:** As noted, the default accuracy is a placeholder until you supply ground truth labels.
 
 ##  License
 MIT License © 2025
