@@ -167,18 +167,18 @@ if not st.session_state.processed:
     df["Confidence"] = confidences
     df["Response"] = responses
     df["Processing_Time_sec"] = processing_times
-    # ---------------------------
-    # Apply Negative-only threshold for Email_Trigger
-    # ---------------------------
-    df["Email_Trigger"] = df.apply(
-        lambda r: "Yes" if (r["Sentiment"] == "Negative" and r["Confidence"] >= NEGATIVE_THRESHOLD) else "No",
-        axis=1
-    )
+   
 
     st.session_state.df_processed = df.copy()
     st.session_state.processed = True
 
 df = st.session_state.df_processed
+# Recompute Email_Trigger on every run based on the current slider
+df = df.copy()  # avoid mutating the session df in-place
+df["Email_Trigger"] = df.apply(
+    lambda r: "Yes" if (r["Sentiment"] == "Negative" and r["Confidence"] >= NEGATIVE_THRESHOLD) else "No",
+    axis=1
+)
 st.success("Processing complete!")
 
 # ---------------------------
