@@ -111,6 +111,17 @@ label_map = {
 }
 
 # ---------------------------
+# Negative-only confidence threshold (adjustable)
+# ---------------------------
+st.sidebar.header("Settings")
+NEGATIVE_THRESHOLD = st.sidebar.slider(
+    "Negative confidence threshold (for Email Trigger)",
+    min_value=0.50, max_value=0.95, value=0.70, step=0.01,
+    help="Only Negative predictions at or above this confidence will auto-trigger emails."
+)
+st.sidebar.info(f"Current Negative threshold: {NEGATIVE_THRESHOLD:.2f}")
+
+# ---------------------------
 # Sentiment analysis
 # ---------------------------
 def analyze_all_sentiments(texts):
@@ -156,7 +167,13 @@ if not st.session_state.processed:
     df["Confidence"] = confidences
     df["Response"] = responses
     df["Processing_Time_sec"] = processing_times
-    df["Email_Trigger"] = df["Sentiment"].apply(lambda s: "Yes" if s == "Negative" else "No")
+    # ---------------------------
+    # Apply Negative-only threshold for Email_Trigger
+    # ---------------------------
+    df["Email_Trigger"] = df.apply(
+        lambda r: "Yes" if (r["Sentiment"] == "Negative" and r["Confidence"] >= NEGATIVE_THRESHOLD) else "No",
+        axis=1
+    )
 
     st.session_state.df_processed = df.copy()
     st.session_state.processed = True
@@ -176,7 +193,7 @@ styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
 # Trigger Email Section
-st.subheader("Trigger Email Actions (Only for Negative Reviews)")
+st.subheader("Trigger Email Actions (Only for Negative Reviews meeting threshold)")
 negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
 for idx, row in negative_df.iterrows():
@@ -190,6 +207,7 @@ for idx, row in negative_df.iterrows():
         st.markdown(f"**Date:** {row.get('Date', 'N/A')}")
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
+        st.markdown(f"**Model Confidence:** {row['Confidence']:.2f} (threshold {NEGATIVE_THRESHOLD:.2f})")
 
         if st.button(f"Send Email (Row {idx})", key=f"send_button_{idx}"):
             recipient_email = row.get("Email", "")
