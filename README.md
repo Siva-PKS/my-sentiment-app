@@ -24,7 +24,7 @@ Last updated: **2025-08-25 07:54:50.061 UTC**
 - (no data in the last 14 days)
 <!-- REFERRERS:END -->
 
-
+![GitHub all releases](https://img.shields.io/github/downloads/Siva-PKS/my-sentiment-app/total)
 
 
 # Customer Review Sentiment Analyzer & Auto‑Responder
