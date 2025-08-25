@@ -1,54 +1,64 @@
 name: Update Dependabot badge
+
 on:
   schedule:
-    - cron: "7 * * * *"   # hourly; adjust as you like
+    - cron: "7 * * * *"     # hourly; change if you want
   workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   update:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute open Dependabot alerts
+      - name: Build badge JSON (graceful if disabled)
         uses: actions/github-script@v7
         with:
           script: |
-            const { owner, repo } = context.repo
-            // Page through alerts (max 100 per page). Filter state=open.
-            let page = 1, open = 0
-            while (true) {
-              const { data } = await github.request('GET /repos/{owner}/{repo}/dependabot/alerts', {
-                owner, repo, state: 'open', per_page: 100, page
-              })
-              open += data.length
-              if (data.length < 100) break
-              page++
+            const { owner, repo } = context.repo;
+
+            async function countOpenAlerts() {
+              let page = 1, total = 0;
+              while (true) {
+                const res = await github.request(
+                  'GET /repos/{owner}/{repo}/dependabot/alerts',
+                  { owner, repo, state: 'open', per_page: 100, page }
+                );
+                total += res.data.length;
+                if (res.data.length < 100) break;
+                page++;
+              }
+              return total;
             }
 
-            // Build Shields endpoint JSON:
-            // https://shields.io/badges/endpoint-badge
-            const payload = {
-              schemaVersion: 1,
-              label: "dependabot alerts",
-              message: String(open),
-              color: open === 0 ? "brightgreen" : open <= 5 ? "green" : open <= 20 ? "orange" : "red"
+            let payload;
+            try {
+              const open = await countOpenAlerts();
+              payload = {
+                schemaVersion: 1,
+                label: "dependabot alerts",
+                message: String(open),
+                color: open === 0 ? "brightgreen" : open <= 5 ? "green" : open <= 20 ? "orange" : "red"
+              };
+            } catch (e) {
+              // If alerts are disabled or API is not available, show 'disabled'
+              if (e.status === 403 || e.status === 404 || /disabled/i.test(String(e.message))) {
+                payload = { schemaVersion: 1, label: "dependabot", message: "disabled", color: "lightgrey" };
+              } else {
+                throw e; // real error, surface it
+              }
             }
 
-            const fs = require('fs')
-            const path = 'badges/dependabot.json'
-            fs.mkdirSync('badges', { recursive: true })
-            fs.writeFileSync(path, JSON.stringify(payload), 'utf8')
+            const fs = require('fs');
+            const path = 'badges/dependabot.json';
+            fs.mkdirSync('badges', { recursive: true });
+            fs.writeFileSync(path, JSON.stringify(payload), 'utf8');
 
-            // Commit the JSON so Shields can read it from raw.githubusercontent.com
-            const get = await github.request('GET /repos/{owner}/{repo}/contents/{path}', {
-              owner, repo, path, mediaType: { format: 'raw' }
-            }).catch(() => null)
-
-            await github.request('PUT /repos/{owner}/{repo}/contents/{path}', {
-              owner, repo, path,
-              message: 'chore: update dependabot badge data [bot]',
-              content: Buffer.from(JSON.stringify(payload), 'utf8').toString('base64'),
-              sha: get?.data?.sha
-            })
+      - name: Commit badge JSON
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore: update dependabot badge data [bot]"
+          file_pattern: badges/dependabot.json
