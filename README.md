@@ -1,7 +1,7 @@
 ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=Siva-PKS.my-sentiment-app&left_color=black&right_color=blue&left_text=Visitors)
 ![GitHub all releases](https://img.shields.io/github/downloads/Siva-PKS/my-sentiment-app/total.svg)
 
-## 📊 Clone Stats
+## Clone Stats
 
 <!-- CLONE-STATS:START -->
 Fetching data...
