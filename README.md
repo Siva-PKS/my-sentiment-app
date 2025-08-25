@@ -16,6 +16,15 @@ Last updated: **2025-08-25 07:49:35.545 UTC**
 </details>
 <!-- CLONE-STATS:END -->
 
+
+## Top Referrers (last 14 days)
+<!-- REFERRERS:START -->
+Fetching…
+<!-- REFERRERS:END -->
+
+
+
+
 # Customer Review Sentiment Analyzer & Auto‑Responder
 
 A Streamlit app that ingests customer reviews, detects sentiment with a transformer model, and **auto‑generates polite, professional replies to negative feedback** using a local LLM (FLAN‑T5). It helps support teams triage reviews and improve customer experience with minimal manual effort. It can also **send the generated replies via email** (SMTP), one review at a time.
