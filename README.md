@@ -1,3 +1,5 @@
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=sivapk.my-project&left_color=black&right_color=blue&left_text=Visitors)
+
 # Customer Review Sentiment Analyzer & Auto‑Responder
 
 A Streamlit app that ingests customer reviews, detects sentiment with a transformer model, and **auto‑generates polite, professional replies to negative feedback** using a local LLM (FLAN‑T5). It helps support teams triage reviews and improve customer experience with minimal manual effort. It can also **send the generated replies via email** (SMTP), one review at a time.
