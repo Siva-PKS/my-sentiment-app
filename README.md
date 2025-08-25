@@ -1,4 +1,4 @@
-![Visitors](https://visitor-badge.laobi.icu/badge?page_id=sivapk.my-project&left_color=black&right_color=blue&left_text=Visitors)
+![Visitors](https://visitor-badge.laobi.icu/badge?page_id=Siva-PKS.my-sentiment-app&left_color=black&right_color=blue&left_text=Visitors)
 
 # Customer Review Sentiment Analyzer & Auto‑Responder
 
