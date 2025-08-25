@@ -4,7 +4,16 @@
 ## Clone Stats
 
 <!-- CLONE-STATS:START -->
-Fetching data...
+Last updated: **2025-08-25 07:49:35.545 UTC**
+
+- **Total clones (14 days):** `0`
+- **Unique cloners (14 days):** `0`
+
+<details><summary>Daily breakdown</summary>
+
+- (unable to fetch traffic data right now)
+
+</details>
 <!-- CLONE-STATS:END -->
 
 # Customer Review Sentiment Analyzer & Auto‑Responder
