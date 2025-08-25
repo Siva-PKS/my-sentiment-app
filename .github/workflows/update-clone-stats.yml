@@ -1,0 +1,88 @@
+name: Update clone stats in README
+
+on:
+  schedule:
+    - cron: "17 0 * * *"   # runs daily at 00:17 UTC
+  workflow_dispatch:        # allow manual run
+
+permissions:
+  contents: write           # needed to commit README changes
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Update README with clone stats
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo  = context.repo.repo;
+
+            // 1) Get 14-day clone stats
+            const { data } = await github.request('GET /repos/{owner}/{repo}/traffic/clones', {
+              owner, repo
+            });
+
+            const total = data.count || 0;
+            const unique = data.uniques || 0;
+
+            // Optional: sum daily breakdown (usually equals totals above)
+            const byDay = (data.clones || []).map(d => `- ${d.timestamp.slice(0,10)}: ${d.count} clones (${d.uniques} unique)`);
+
+            // 2) Fetch README
+            const readmePath = 'README.md';
+            const readmeRes = await github.request('GET /repos/{owner}/{repo}/contents/{path}', {
+              owner, repo, path: readmePath,
+              mediaType: { format: 'raw' }
+            });
+            let readme = readmeRes.data.toString();
+
+            // 3) Build the replacement block
+            const stamp = new Date().toISOString().replace('T', ' ').replace('Z',' UTC');
+            const newBlock = [
+              `Last updated: **${stamp}**`,
+              ``,
+              `- **Total clones (14 days):** \`${total}\``,
+              `- **Unique cloners (14 days):** \`${unique}\``,
+              ``,
+              `<details><summary>Daily breakdown</summary>`,
+              ``,
+              ...(byDay.length ? byDay : ['- (no data)']),
+              ``,
+              `</details>`
+            ].join('\n');
+
+            // 4) Replace between markers (or append if missing)
+            const start = '<!-- CLONE-STATS:START -->';
+            const end   = '<!-- CLONE-STATS:END -->';
+            const pattern = new RegExp(`${start}[\\s\\S]*?${end}`);
+            let updated;
+
+            if (pattern.test(readme)) {
+              updated = readme.replace(pattern, `${start}\n${newBlock}\n${end}`);
+            } else {
+              updated = readme.trimEnd() + `\n\n## 📊 Clone Stats\n\n${start}\n${newBlock}\n${end}\n`;
+            }
+
+            if (updated === readme) {
+              core.info('README already up to date; nothing to commit.');
+              return;
+            }
+
+            // 5) Commit the change
+            const getSha = await github.request('GET /repos/{owner}/{repo}/contents/{path}', {
+              owner, repo, path: readmePath
+            });
+
+            await github.request('PUT /repos/{owner}/{repo}/contents/{path}', {
+              owner, repo, path: readmePath,
+              message: 'docs: update clone stats in README [bot]',
+              content: Buffer.from(updated, 'utf8').toString('base64'),
+              sha: getSha.data.sha
+            });
+
+            core.info('README updated with clone stats ✅');
