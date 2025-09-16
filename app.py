@@ -12,7 +12,7 @@ import time
 from sklearn.metrics import accuracy_score
 import random
 import math
-import html as html_lib
+import numpy as np
 
 # ---------------------------
 # Fix torch Streamlit bug (common workaround)
@@ -25,7 +25,7 @@ except Exception:
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
 # ---------------------------
-# App title (hackathon-ready)
+# App title
 # ---------------------------
 st.set_page_config(page_title="RapidSent — Customer Sentiment & Auto-Responder (Hackathon)", layout="wide")
 st.title("RapidSent — Customer Feedback Sentiment & Auto-Responder (Hackathon Edition)")
@@ -39,10 +39,9 @@ SENDER_EMAIL = "spkincident@gmail.com"
 # password must be declared in Streamlit secrets as "email_password"
 SENDER_PASSWORD = st.secrets.get("email_password", None)
 
-def send_email(recipient_email, subject, plain_text_body, html_body):
+def send_email(recipient_email, subject, plain_body, html_body=None):
     """
-    Send multipart/alternative email with plain text and HTML fallback.
-    Returns True on success, False on failure.
+    Sends both plain and HTML email (if html_body supplied). Returns True/False.
     """
     if not SENDER_PASSWORD:
         st.error("Email password not configured in Streamlit secrets.")
@@ -53,11 +52,11 @@ def send_email(recipient_email, subject, plain_text_body, html_body):
         msg["To"] = recipient_email
         msg["Subject"] = subject
 
-        part_plain = MIMEText(plain_text_body, "plain")
-        part_html = MIMEText(html_body, "html")
-
-        msg.attach(part_plain)
-        msg.attach(part_html)
+        part1 = MIMEText(plain_body, "plain")
+        msg.attach(part1)
+        if html_body:
+            part2 = MIMEText(html_body, "html")
+            msg.attach(part2)
 
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
@@ -143,7 +142,6 @@ def to_float_or_nan(x):
         return float('nan')
 
 def format_rating_one_decimal(val):
-    # expects numeric or NaN; returns string like "4.5" or "" for missing
     try:
         if pd.isna(val):
             return ""
@@ -296,13 +294,12 @@ df_final = pd.DataFrame({
 st.session_state.df_processed_raw = df_final.copy()
 
 # ---------------------------
-# Load models (sentiment & llm)
+# Load models (sentiment & llm) with graceful fallback
 # ---------------------------
 @st.cache_resource
 def load_sentiment_pipeline():
     try:
-        p = pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
-        return p
+        return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
     except Exception as e:
         st.warning(f"Could not load sentiment pipeline: {e}")
         return None
@@ -317,14 +314,8 @@ def load_llm_model():
         st.warning(f"Could not load LLM model: {e}")
         return None, None
 
-with st.spinner("Loading models..."):
-    sentiment_pipeline = load_sentiment_pipeline()
-    tokenizer, model = load_llm_model()
-
-sentiment_loaded = sentiment_pipeline is not None
-llm_loaded = (tokenizer is not None and model is not None)
-st.sidebar.markdown(f"- Sentiment model loaded: **{sentiment_loaded}**")
-st.sidebar.markdown(f"- Response LLM loaded: **{llm_loaded}**")
+sentiment_pipeline = load_sentiment_pipeline()
+tokenizer, model = load_llm_model()
 
 label_map = {
     "LABEL_0": "Negative",
@@ -333,7 +324,7 @@ label_map = {
 }
 
 # ---------------------------
-# Settings
+# Settings (sidebar)
 # ---------------------------
 st.sidebar.header("Settings")
 NEGATIVE_THRESHOLD = st.sidebar.slider(
@@ -349,42 +340,29 @@ st.sidebar.info(f"Current Negative threshold: {NEGATIVE_THRESHOLD:.2f}")
 def analyze_all_sentiments(texts):
     labels, confidences = [], []
     if sentiment_pipeline is None:
-        # simple heuristic fallback
+        # fallback heuristic
         for t in texts:
             t_low = (t or "").lower()
-            if any(w in t_low for w in ["worst", "not", "don't", "doesn't", "poor", "bad", "waste", "defective", "stop", "broken", "refund", "return"]):
+            if any(w in t_low for w in ["worst", "not", "don't", "doesn't", "poor", "bad", "waste", "defective", "stop", "problem", "refund", "return", "refund"]):
                 labels.append("Negative"); confidences.append(0.85)
-            elif any(w in t_low for w in ["good", "excellent", "best", "great", "satisfied", "love", "awesome", "recommend"]):
+            elif any(w in t_low for w in ["good", "excellent", "best", "great", "satisfied", "love", "awesome", "worth"]):
                 labels.append("Positive"); confidences.append(0.85)
             else:
                 labels.append("Neutral"); confidences.append(0.60)
         return labels, confidences
 
-    # use pipeline
-    try:
-        results = sentiment_pipeline([str(t)[:512] for t in texts], return_all_scores=True)
-        for res in results:
-            top = max(res, key=lambda x: x['score'])
-            label = label_map.get(top['label'], "Unknown")
-            confidence = round(float(top['score']), 2)
-            labels.append(label)
-            confidences.append(confidence)
-        return labels, confidences
-    except Exception as e:
-        st.warning(f"Sentiment pipeline failed during run: {e}")
-        # fallback to heuristics
-        return analyze_all_sentiments(None) if texts is None else analyze_all_sentiments(texts)
+    results = sentiment_pipeline([str(t)[:512] for t in texts], return_all_scores=True)
+    for res in results:
+        top = max(res, key=lambda x: x['score'])
+        label = label_map.get(top['label'], "Unknown")
+        confidence = round(float(top['score']), 2)
+        labels.append(label)
+        confidences.append(confidence)
+    return labels, confidences
 
 def generate_response(sentiment, review):
-    # If sentiment not negative, or LLM not loaded -> no response needed (or simple fallback)
-    if sentiment != "Negative":
+    if sentiment != "Negative" or tokenizer is None or model is None:
         return "No response needed."
-    if tokenizer is None or model is None:
-        # simple templated fallback
-        short = (review or "").strip()
-        short = short if len(short) <= 200 else short[:197] + "..."
-        return f"Thank you for your review. We are sorry for the trouble you experienced. We will investigate and get back to you. (Ref: {short})"
-    # otherwise generate with LLM
     prompt = (
         "You are a polite and helpful customer support agent. "
         "Write a short, professional reply to this negative customer review:\n"
@@ -394,10 +372,8 @@ def generate_response(sentiment, review):
         inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=512)
         output = model.generate(**inputs, max_new_tokens=150)
         llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
-        # keep a short, polite wrapper
         return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
-    except Exception as e:
-        st.warning(f"LLM generation failed: {e}")
+    except Exception:
         return "Thank you for your review. We will look into the issue."
 
 # ---------------------------
@@ -417,8 +393,8 @@ if not st.session_state.processed:
         prog.progress((i + 1) / max(1, len(raw_reviews)))
 
     df_out = st.session_state.df_processed_raw.copy()
-    # ensure confidence stored as float numbers (default 0.0 if missing)
-    df_out["Confidence"] = [float(x) if x != "" and x is not None else 0.0 for x in confidences]
+    # ensure confidence stored as float numbers
+    df_out["Confidence"] = [float(x) if x != "" else 0.0 for x in confidences]
     df_out["Sentiment"] = sentiments
     df_out["Response"] = responses
     df_out["Processing_Time_sec"] = proc_times
@@ -463,6 +439,60 @@ def format_confidence_two_decimals(x):
 df_display["Confidence"] = df_display["Confidence"].apply(format_confidence_two_decimals)
 
 # ---------------------------
+# Star Distribution Chart (rounded to nearest whole star)
+# ---------------------------
+def parse_star_display_to_numeric(s):
+    if not isinstance(s, str) or s.strip() == "":
+        return np.nan
+    s = s.strip()
+    full = s.count("★")
+    half = 0.5 if "½" in s else 0.0
+    if full > 0 or half > 0:
+        return float(full) + half
+    try:
+        return float(s)
+    except Exception:
+        return np.nan
+
+def rating_string_to_numeric(r):
+    try:
+        if r is None or str(r).strip() == "":
+            return np.nan
+        return float(str(r).strip())
+    except Exception:
+        return np.nan
+
+def compute_star_numeric_row(row):
+    val = parse_star_display_to_numeric(row.get("Star", ""))
+    if not np.isnan(val):
+        return val
+    val = rating_string_to_numeric(row.get("Rating", ""))
+    if not np.isnan(val):
+        v = max(0.0, min(5.0, val))
+        return round(v * 2) / 2.0
+    if "Star_num" in row.index:
+        try:
+            v = float(row["Star_num"])
+            if not np.isnan(v):
+                return round(v * 2) / 2.0
+        except Exception:
+            pass
+    return np.nan
+
+df["Star_numeric_raw"] = df.apply(compute_star_numeric_row, axis=1)
+
+def to_whole_star(x):
+    if np.isnan(x):
+        return np.nan
+    r = int(round(x))
+    r = max(1, min(5, r))
+    return r
+
+df["Star_whole"] = df["Star_numeric_raw"].apply(lambda x: to_whole_star(x))
+star_counts = df["Star_whole"].value_counts().reindex([5,4,3,2,1], fill_value=0).astype(int).reset_index()
+star_counts.columns = ["Star", "Count"]
+
+# ---------------------------
 # Preview Table (highlight negatives)
 # ---------------------------
 st.subheader("Preview (Transformed & Analyzed)")
@@ -474,6 +504,22 @@ cols_to_show = ["UniqueId", "Category", "Purchasedate", "EmailId", "Star", "Rati
 cols_to_show = [c for c in cols_to_show if c in df_display.columns]
 styled = df_display[cols_to_show].style.apply(highlight_negative_row, axis=1)
 st.dataframe(styled, use_container_width=True)
+
+# ---------------------------
+# Star distribution visualization
+# ---------------------------
+st.subheader("Star Distribution")
+st.write("Counts (rounded to nearest whole star):")
+fig_stars = px.bar(star_counts, x="Star", y="Count",
+                   category_orders={"Star":[5,4,3,2,1]},
+                   labels={"Star":"Star Rating", "Count":"Number of Reviews"},
+                   title="Star Distribution (5 → 1)",
+                   text="Count")
+fig_stars.update_traces(textposition="outside")
+fig_stars.update_layout(xaxis=dict(type="category", categoryorder="array", categoryarray=[5,4,3,2,1]),
+                        yaxis=dict(dtick=1),
+                        showlegend=False)
+st.plotly_chart(fig_stars, use_container_width=True)
 
 # ---------------------------
 # Trigger Email Section (for Negative with threshold)
@@ -511,10 +557,8 @@ for idx, row in negative_df.iterrows():
             st.session_state.open_expander_index = idx
             if recipient_email:
                 chosen_response = manual_text.strip() if manual_text and manual_text.strip() else default_resp
-                subject = f"Response to your review (ID: {uid})"
 
-                full_review_text = row.get('Review', '')
-                # plain text fallback
+                # plain text body (for mail clients that don't render HTML)
                 plain_body = (
                     f"Dear Customer,\n\n"
                     f"Thank you for your feedback. Please find our response below.\n\n"
@@ -525,21 +569,13 @@ for idx, row in negative_df.iterrows():
                     f"Date: {row.get('Purchasedate', 'N/A')}\n"
                     f"Star: {row.get('Star', '')}\n"
                     f"Rating: {row.get('Rating', '')}\n"
-                    f"Review:\n{full_review_text}\n\n"
+                    f"Review:\n{row.get('Review','')}\n\n"
                     f"Our Response:\n{chosen_response}\n"
                     f"---\n\n"
                     f"Best regards,\nCustomer Support Team"
                 )
 
-                # Build HTML body with escaped content; Our Response bold
-                esc_uid = html_lib.escape(str(uid))
-                esc_category = html_lib.escape(str(row.get('Category', 'N/A')))
-                esc_date = html_lib.escape(str(row.get('Purchasedate', 'N/A')))
-                esc_star = html_lib.escape(str(row.get('Star', '')))
-                esc_rating = html_lib.escape(str(row.get('Rating', '')))
-                esc_review = html_lib.escape(full_review_text).replace("\n", "<br>")
-                esc_response = html_lib.escape(chosen_response).replace("\n", "<br>")
-
+                # HTML body so "Our Response:" is bold when recipient opens email
                 html_body = f"""
                 <html>
                   <body>
@@ -547,23 +583,21 @@ for idx, row in negative_df.iterrows():
                     <p>Thank you for your feedback. Please find our response below.</p>
                     <hr>
                     <h4>Review Details:</h4>
-                    <p><strong>ID:</strong> {esc_uid}<br>
-                       <strong>Category:</strong> {esc_category}<br>
-                       <strong>Date:</strong> {esc_date}<br>
-                       <strong>Star:</strong> {esc_star}<br>
-                       <strong>Rating:</strong> {esc_rating}<br>
-                    </p>
-                    <p><strong>Review:</strong><br>{esc_review}</p>
-
-                    <p><strong>Our Response:</strong><br><b>{esc_response}</b></p>
-
+                    <p><b>ID:</b> {uid}<br/>
+                       <b>Category:</b> {row.get('Category', 'N/A')}<br/>
+                       <b>Date:</b> {row.get('Purchasedate', 'N/A')}<br/>
+                       <b>Star:</b> {row.get('Star', '')}<br/>
+                       <b>Rating:</b> {row.get('Rating', '')}</p>
+                    <p><b>Review:</b><br/>{row.get('Review','')}</p>
+                    <p><b>Our Response:</b><br/>{chosen_response}</p>
                     <hr>
-                    <p>Best regards,<br>Customer Support Team</p>
+                    <p>Best regards,<br/>Customer Support Team</p>
                   </body>
                 </html>
                 """
 
-                # Send email (plain + html)
+                subject = f"Response to your review (ID: {uid})"
+
                 if send_email(recipient_email, subject, plain_body, html_body):
                     st.success(f"Email sent to {recipient_email}")
             else:
