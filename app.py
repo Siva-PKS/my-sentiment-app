@@ -521,15 +521,7 @@ st.subheader("Star Distribution (plain star strings)")
 # Show as simple table-like list (5→1)
 for star_string, cnt in zip(star_dist_df["StarString"], star_dist_df["Count"]):
     st.markdown(f"- **{star_string}** — {int(cnt)}")
-
-# Optionally show a basic bar chart
-fig = px.bar(star_dist_df, x="StarString", y="Count", text="Count",
-             category_orders={"StarString": order},
-             labels={"StarString": "Star Rating", "Count": "Number of Reviews"})
-fig.update_traces(marker_color=["#2E7D32","#66BB6A","#FFC107","#FF9800","#E53935"], textposition="outside")
-fig.update_layout(title="Star Distribution (5 → 1)", xaxis={'categoryorder':'array','categoryarray':order}, yaxis=dict(dtick=1), showlegend=False, margin=dict(t=40,b=30))
-st.plotly_chart(fig, use_container_width=True)
-
+    
 # ---------------------------
 # Trigger Email Section (for Negative with threshold)
 # ---------------------------
