@@ -520,7 +520,7 @@ st.dataframe(styled, use_container_width=True)
 st.subheader("Star Distribution (plain star strings)")
 # Show as simple table-like list (5→1)
 for star_string, cnt in zip(star_dist_df["StarString"], star_dist_df["Count"]):
-    st.markdown(f"- **{star_string}** — {int(cnt)}")
+    st.markdown("- **{star_string}** — {int(cnt)}")
     
 # ---------------------------
 # Trigger Email Section (for Negative with threshold)
