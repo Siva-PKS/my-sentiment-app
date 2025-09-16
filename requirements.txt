@@ -1,11 +1,10 @@
 # requirements.txt for Streamlit sentiment app with working transformer models
 
-streamlit
+streamlit>=1.10
 transformers==4.38.2
-torch==2.2.1
-numpy<2.0
+torch==2.7.1+cpu
+sentencepiece
 plotly
-sentencepiece  # <-- required for models like T5, XLM-R
 scikit-learn
 
 # Optional: Faster CSV reading
