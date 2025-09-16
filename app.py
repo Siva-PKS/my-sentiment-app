@@ -78,7 +78,7 @@ for key in ["processed", "last_uploaded_filename"]:
 if "open_expander_index" not in st.session_state:
     st.session_state.open_expander_index = None
 
-uploaded_file = st.file_uploader("📁 Upload CSV (original columns: Unique_ID, Category, Review_text, Date, Email)", type="csv")
+uploaded_file = st.file_uploader("📁 Upload CSV (original columns: UniqueId, Category, Review, Date, Email)", type="csv")
 sample_data_path = "product_reviews_with_stars_filled.csv"
 
 # ---------------------------
