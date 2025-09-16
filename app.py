@@ -59,8 +59,8 @@ for key in ["processed", "last_uploaded_filename"]:
 if "open_expander_index" not in st.session_state:
     st.session_state.open_expander_index = None
 
-uploaded_file = st.file_uploader("📁 Upload CSV with 'Review_text' column", type="csv")
-sample_data_path = "sample_data.csv"
+uploaded_file = st.file_uploader("📁 Upload CSV with 'Review' column", type="csv")
+product_reviews_with_stars_filled_path = "product_reviews_with_stars_filled.csv"
 
 # ---------------------------
 # Handle data input
@@ -71,16 +71,16 @@ if uploaded_file:
         st.session_state.processed = False
     df = pd.read_csv(uploaded_file)
 else:
-    if os.path.exists(sample_data_path):
-        st.success("Using 'sample_data.csv' from directory.")
-        df = pd.read_csv(sample_data_path)
+    if os.path.exists(product_reviews_with_stars_filled_path):
+        st.success("Using 'product_reviews_with_stars_filled.csv' from directory.")
+        df = pd.read_csv(product_reviews_with_stars_filled_path)
     else:
-        st.error("'sample_data.csv' not found. Please upload a CSV.")
+        st.error("'product_reviews_with_stars_filled.csv' not found. Please upload a CSV.")
         st.stop()
 
 # Validation
-if df.empty or "Review_text" not in df.columns:
-    st.error("Missing or empty 'Review_text' column.")
+if df.empty or "Review" not in df.columns:
+    st.error("Missing or empty 'Review' column.")
     st.stop()
 
 MAX_ROWS = 100
@@ -153,12 +153,12 @@ def generate_response(sentiment, review):
 # ---------------------------
 if not st.session_state.processed:
     progress_bar = st.progress(0)
-    sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
+    sentiments, confidences = analyze_all_sentiments(df["Review"].tolist())
 
     responses, processing_times = [], []
     for i, row in df.iterrows():
         start_time = time.time()
-        responses.append(generate_response(sentiments[i], row["Review_text"]))
+        responses.append(generate_response(sentiments[i], row["Review"]))
         end_time = time.time()
         processing_times.append(end_time - start_time)
         progress_bar.progress((i + 1) / len(df))
@@ -188,7 +188,7 @@ st.subheader("Preview")
 def highlight_negative(row):
     return ['background-color: #ffe6e6'] * len(row) if row["Sentiment"] == "Negative" else [''] * len(row)
 
-cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
+cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review", "Sentiment", "Confidence", "Response", "Email_Trigger"] if col in df.columns]
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
@@ -205,7 +205,7 @@ for idx, row in negative_df.iterrows():
     with st.expander(f"Email for Review #{idx+1} - {uid}", expanded=expanded):
         st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
         st.markdown(f"**Date:** {row.get('Date', 'N/A')}")
-        st.markdown(f"**Review:** {row['Review_text']}")
+        st.markdown(f"**Review:** {row['Review']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
         st.markdown(f"**Model Confidence:** {row['Confidence']:.2f} (threshold {NEGATIVE_THRESHOLD:.2f})")
 
@@ -223,7 +223,7 @@ for idx, row in negative_df.iterrows():
                     f"ID: {uid}\n"
                     f"Category: {row.get('Category', 'N/A')}\n"
                     f"Date: {row.get('Date', 'N/A')}\n"
-                    f"Review:\n{row['Review_text']}\n\n"
+                    f"Review:\n{row['Review']}\n\n"
                     f"Our Response:\n{row['Response']}\n"
                     f"---\n\n"
                     f"Best regards,\nCustomer Support Team"
