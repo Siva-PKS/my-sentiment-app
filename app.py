@@ -1,4 +1,3 @@
-
 # app.py
 import streamlit as st
 import pandas as pd
@@ -168,6 +167,7 @@ def rating_to_star_display(rating_val):
         is_half = (rounded - full_stars) == 0.5
         stars = "★" * full_stars
         if is_half:
+            # keep half marker for internal display
             stars += "½"
         empty_count = max(0, 5 - math.ceil(rounded))
         stars += "☆" * empty_count
@@ -245,7 +245,7 @@ for idx, row in df.iterrows():
     star_display.append(rating_to_star_display(star_num))
 
 df["Star_num"] = star_nums
-df["Star"] = star_display  # overwrite Star with display-friendly star string
+df["Star"] = star_display  # overwrite Star with display-friendly star string (may include half '½')
 
 # Fill Review if empty (but leave ~10% empty)
 placeholder_positive = [
@@ -441,7 +441,7 @@ def format_confidence_two_decimals(x):
 df_display["Confidence"] = df_display["Confidence"].apply(format_confidence_two_decimals)
 
 # ---------------------------
-# Star Distribution Chart (rounded to nearest whole star)
+# Star distribution: convert to whole-star string like '★★★☆☆' and count
 # ---------------------------
 def parse_star_display_to_numeric(s):
     if not isinstance(s, str) or s.strip() == "":
@@ -483,16 +483,23 @@ def compute_star_numeric_row(row):
 
 df["Star_numeric_raw"] = df.apply(compute_star_numeric_row, axis=1)
 
-def to_whole_star(x):
+# Convert numeric to whole integer star (1..5) by rounding to nearest integer, but clip to 1-5
+def numeric_to_whole_star_string(x):
     if np.isnan(x):
-        return np.nan
+        return "No Rating"
     r = int(round(x))
     r = max(1, min(5, r))
-    return r
+    full = "★" * r
+    empty = "☆" * (5 - r)
+    return full + empty
 
-df["Star_whole"] = df["Star_numeric_raw"].apply(lambda x: to_whole_star(x))
-star_counts = df["Star_whole"].value_counts().reindex([5,4,3,2,1], fill_value=0).astype(int).reset_index()
-star_counts.columns = ["Star", "Count"]
+df["Star_whole_string"] = df["Star_numeric_raw"].apply(numeric_to_whole_star_string)
+
+# Count each star string in order 5→1
+order = ["★★★★★", "★★★★☆", "★★★☆☆", "★★☆☆☆", "★☆☆☆☆"]
+counts = df["Star_whole_string"].value_counts().reindex(order, fill_value=0)
+star_dist_df = counts.reset_index()
+star_dist_df.columns = ["StarString", "Count"]
 
 # ---------------------------
 # Preview Table (highlight negatives)
@@ -508,53 +515,20 @@ styled = df_display[cols_to_show].style.apply(highlight_negative_row, axis=1)
 st.dataframe(styled, use_container_width=True)
 
 # ---------------------------
-# Star distribution visualization (legend + chart)
+# Simple star-distribution display (plain star strings + counts)
 # ---------------------------
-st.subheader("Star Distribution")
+st.subheader("Star Distribution (plain star strings)")
+# Show as simple table-like list (5→1)
+for star_string, cnt in zip(star_dist_df["StarString"], star_dist_df["Count"]):
+    st.markdown(f"- **{star_string}** — {int(cnt)}")
 
-# colors to match the small-dot legend (5→1)
-legend_colors = {
-    5: "#4CAF50",   # green
-    4: "#8BC34A",   # light green
-    3: "#FFC107",   # amber
-    2: "#FF9800",   # orange
-    1: "#F44336"    # red
-}
-
-# Build a small HTML legend similar to provided image
-legend_html_items = []
-for star in [5,4,3,2,1]:
-    count = int(star_counts.loc[star_counts["Star"] == star, "Count"].squeeze()) if star in star_counts["Star"].values else 0
-    color = legend_colors.get(star, "#999999")
-    # Each legend row: colored circle, label, count
-    legend_html_items.append(f"""
-      <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0;">
-        <div style="display:flex;align-items:center;">
-          <div style="width:12px;height:12px;border-radius:50%;background:{color};margin-right:8px;"></div>
-          <div style="font-weight:600;">{star}-star</div>
-        </div>
-        <div style="font-weight:700;color:#ffffff;background:#2b3940;padding:4px 8px;border-radius:6px;">{count}</div>
-      </div>
-    """)
-
-legend_html = "<div style='background:transparent;padding:6px 0;max-width:300px;'>" + "".join(legend_html_items) + "</div>"
-# Render legend in a column to the left of the chart
-col1, col2 = st.columns([1,3])
-with col1:
-    st.markdown(legend_html, unsafe_allow_html=True)
-with col2:
-    fig_stars = px.bar(star_counts, x="Star", y="Count",
-                       category_orders={"Star":[5,4,3,2,1]},
-                       labels={"Star":"Star Rating", "Count":"Number of Reviews"},
-                       title="Star Distribution (5 → 1)",
-                       text="Count")
-    fig_stars.update_traces(textposition="outside",
-                            marker_color=[legend_colors.get(int(r), "#777777") for r in star_counts["Star"]])
-    fig_stars.update_layout(xaxis=dict(type="category", categoryorder="array", categoryarray=[5,4,3,2,1]),
-                            yaxis=dict(dtick=1),
-                            showlegend=False,
-                            margin=dict(t=40, b=30))
-    st.plotly_chart(fig_stars, use_container_width=True)
+# Optionally show a basic bar chart
+fig = px.bar(star_dist_df, x="StarString", y="Count", text="Count",
+             category_orders={"StarString": order},
+             labels={"StarString": "Star Rating", "Count": "Number of Reviews"})
+fig.update_traces(marker_color=["#2E7D32","#66BB6A","#FFC107","#FF9800","#E53935"], textposition="outside")
+fig.update_layout(title="Star Distribution (5 → 1)", xaxis={'categoryorder':'array','categoryarray':order}, yaxis=dict(dtick=1), showlegend=False, margin=dict(t=40,b=30))
+st.plotly_chart(fig, use_container_width=True)
 
 # ---------------------------
 # Trigger Email Section (for Negative with threshold)
