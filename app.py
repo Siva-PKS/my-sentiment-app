@@ -1,3 +1,5 @@
+
+# app.py
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -343,7 +345,7 @@ def analyze_all_sentiments(texts):
         # fallback heuristic
         for t in texts:
             t_low = (t or "").lower()
-            if any(w in t_low for w in ["worst", "not", "don't", "doesn't", "poor", "bad", "waste", "defective", "stop", "problem", "refund", "return", "refund"]):
+            if any(w in t_low for w in ["worst", "not", "don't", "doesn't", "poor", "bad", "waste", "defective", "stop", "problem", "refund", "return"]):
                 labels.append("Negative"); confidences.append(0.85)
             elif any(w in t_low for w in ["good", "excellent", "best", "great", "satisfied", "love", "awesome", "worth"]):
                 labels.append("Positive"); confidences.append(0.85)
@@ -506,20 +508,53 @@ styled = df_display[cols_to_show].style.apply(highlight_negative_row, axis=1)
 st.dataframe(styled, use_container_width=True)
 
 # ---------------------------
-# Star distribution visualization
+# Star distribution visualization (legend + chart)
 # ---------------------------
 st.subheader("Star Distribution")
-st.write("Counts (rounded to nearest whole star):")
-fig_stars = px.bar(star_counts, x="Star", y="Count",
-                   category_orders={"Star":[5,4,3,2,1]},
-                   labels={"Star":"Star Rating", "Count":"Number of Reviews"},
-                   title="Star Distribution (5 → 1)",
-                   text="Count")
-fig_stars.update_traces(textposition="outside")
-fig_stars.update_layout(xaxis=dict(type="category", categoryorder="array", categoryarray=[5,4,3,2,1]),
-                        yaxis=dict(dtick=1),
-                        showlegend=False)
-st.plotly_chart(fig_stars, use_container_width=True)
+
+# colors to match the small-dot legend (5→1)
+legend_colors = {
+    5: "#4CAF50",   # green
+    4: "#8BC34A",   # light green
+    3: "#FFC107",   # amber
+    2: "#FF9800",   # orange
+    1: "#F44336"    # red
+}
+
+# Build a small HTML legend similar to provided image
+legend_html_items = []
+for star in [5,4,3,2,1]:
+    count = int(star_counts.loc[star_counts["Star"] == star, "Count"].squeeze()) if star in star_counts["Star"].values else 0
+    color = legend_colors.get(star, "#999999")
+    # Each legend row: colored circle, label, count
+    legend_html_items.append(f"""
+      <div style="display:flex;align-items:center;justify-content:space-between;margin:4px 0;">
+        <div style="display:flex;align-items:center;">
+          <div style="width:12px;height:12px;border-radius:50%;background:{color};margin-right:8px;"></div>
+          <div style="font-weight:600;">{star}-star</div>
+        </div>
+        <div style="font-weight:700;color:#ffffff;background:#2b3940;padding:4px 8px;border-radius:6px;">{count}</div>
+      </div>
+    """)
+
+legend_html = "<div style='background:transparent;padding:6px 0;max-width:300px;'>" + "".join(legend_html_items) + "</div>"
+# Render legend in a column to the left of the chart
+col1, col2 = st.columns([1,3])
+with col1:
+    st.markdown(legend_html, unsafe_allow_html=True)
+with col2:
+    fig_stars = px.bar(star_counts, x="Star", y="Count",
+                       category_orders={"Star":[5,4,3,2,1]},
+                       labels={"Star":"Star Rating", "Count":"Number of Reviews"},
+                       title="Star Distribution (5 → 1)",
+                       text="Count")
+    fig_stars.update_traces(textposition="outside",
+                            marker_color=[legend_colors.get(int(r), "#777777") for r in star_counts["Star"]])
+    fig_stars.update_layout(xaxis=dict(type="category", categoryorder="array", categoryarray=[5,4,3,2,1]),
+                            yaxis=dict(dtick=1),
+                            showlegend=False,
+                            margin=dict(t=40, b=30))
+    st.plotly_chart(fig_stars, use_container_width=True)
 
 # ---------------------------
 # Trigger Email Section (for Negative with threshold)
@@ -589,7 +624,7 @@ for idx, row in negative_df.iterrows():
                        <b>Star:</b> {row.get('Star', '')}<br/>
                        <b>Rating:</b> {row.get('Rating', '')}</p>
                     <p><b>Review:</b><br/>{row.get('Review','')}</p>
-                    <p><b>Our Response:</b><br/>{chosen_response}</p>
+                    <p><b>Our Response:</b><br/><b>{chosen_response}</b></p>
                     <hr>
                     <p>Best regards,<br/>Customer Support Team</p>
                   </body>
