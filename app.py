@@ -95,7 +95,6 @@ df = df.fillna("")
 # Input columns we expect in raw CSV: Unique_ID, Category, Review_text, Date, Email
 # Output target columns: UniqueId, Category, Purchasedate, EmailId, Star, Rating, Review
 # ---------------------------
-# rename what we can
 rename_map = {}
 if "Unique_ID" in df.columns:
     rename_map["Unique_ID"] = "UniqueId"
@@ -129,7 +128,6 @@ def to_float_or_nan(x):
         s = str(x).strip()
         if s == "" or s.lower() in ["nan", "none", "null"]:
             return float('nan')
-        # sometimes ratings stored as "4" -> allow it
         return float(s)
     except Exception:
         return float('nan')
@@ -145,30 +143,22 @@ def format_rating_one_decimal(val):
 
 def rating_to_star_display(rating_val):
     """
-    Convert numeric rating -> star display.
-    We'll support half-star by showing '½' after filled stars.
+    Convert numeric rating -> star display with half-star marker '½'.
     Examples:
       4.5 -> '★★★★½'
-      3.0 -> '★★★☆☆'  (we will show filled stars then empty to 5, no '½')
+      3.0 -> '★★★☆☆'
     """
     try:
         if pd.isna(rating_val):
             return ""
         r = float(rating_val)
-        # clamp 0..5
         r = max(0.0, min(5.0, r))
-        # compute full stars and half flag
-        half = (abs(r - round(r * 2) / 2) < 1e-8)  # true if already half steps
-        # round to nearest 0.5
         rounded = round(r * 2) / 2.0
         full_stars = int(math.floor(rounded))
         is_half = (rounded - full_stars) == 0.5
         stars = "★" * full_stars
         if is_half:
             stars += "½"
-        # optionally add empty stars to reach visual length (not strictly necessary)
-        # compute displayed length: count filling as 1 for half too
-        disp_len = full_stars + (1 if is_half else 0)
         empty_count = max(0, 5 - math.ceil(rounded))
         stars += "☆" * empty_count
         return stars
@@ -176,38 +166,25 @@ def rating_to_star_display(rating_val):
         return ""
 
 # ---------------------------
-# If Star/Rating/Review are missing or invalid: generate/clean them
-# - If Rating exists, coerce to float and format to 1 decimal
-# - If Rating missing but Star present (like "4" or "★★★★"), try to infer numeric rating
-# - If both missing, randomly assign rating for demo purposes (but keep ~10% nulls)
-# - Intentionally leave ~10% of rows with missing Star OR Rating OR Review to mimic noisy data
+# Clean / generate Star, Rating, Review (with some intentional nulls)
 # ---------------------------
 random.seed(42)
 
-# First, coerce existing Rating-like columns to numeric if possible
-rating_values = []
-for idx, row in df.iterrows():
-    raw_rating = row.get("Rating", "")
-    numeric = to_float_or_nan(raw_rating)
-    rating_values.append(numeric)
-df["Rating_num"] = rating_values
+# Coerce Rating to numeric helper column
+df["Rating_num"] = df["Rating"].apply(to_float_or_nan)
 
-# If Rating_num is NaN but Star column contains digits (e.g., '4'), try to use it
+# If Rating missing but Star has info, try to infer
 for idx, row in df.iterrows():
     if pd.isna(df.at[idx, "Rating_num"]):
         star_raw = str(row.get("Star", "")).strip()
-        # If star_raw is like '4' or '4.0'
         try:
             if star_raw != "":
-                # try parse numeric
                 possible = to_float_or_nan(star_raw)
                 if not math.isnan(possible):
                     df.at[idx, "Rating_num"] = possible
                     continue
-                # else if star_raw contains unicode stars: count '★'
                 if "★" in star_raw:
                     filled = star_raw.count("★")
-                    # check for half marker '½'
                     is_half = "½" in star_raw
                     inferred = filled + (0.5 if is_half else 0.0)
                     df.at[idx, "Rating_num"] = float(inferred)
@@ -215,64 +192,52 @@ for idx, row in df.iterrows():
         except Exception:
             pass
 
-# Now for rows with no rating yet, randomly generate some ratings for demo:
-# Keep approx 10% of rows with missing rating intentionally.
+# Generate ratings for most missing rows, keep ~10% missing
 indices_missing_rating = df[df["Rating_num"].apply(lambda x: math.isnan(x))].index.tolist()
-keep_missing_count = max(1, int(0.10 * len(df)))  # keep this many as missing
-# shuffle
+keep_missing_count = max(1, int(0.10 * len(df)))
 random.shuffle(indices_missing_rating)
-# first keep_missing_count indices remain missing; for others, generate rating
 to_generate = indices_missing_rating[keep_missing_count:]
 for idx in to_generate:
-    # generate distribution skewed toward 3-5 (realistic ecom)
-    r = random.choices([round(x * 0.5, 1) for x in range(2, 11)], weights=[1,1,2,4,6,8,10,6,4], k=1)[0]
+    r = random.choices([round(x * 0.5, 1) for x in range(2, 11)],
+                       weights=[1,1,2,4,6,8,10,6,4], k=1)[0]
     df.at[idx, "Rating_num"] = float(r)
 
-# Format Rating column to single decimal string
-df["Rating"] = df["Rating_num"].apply(lambda x: format_rating_one_decimal(x) if not (isinstance(x, float) and math.isnan(x)) else "")
+# Format Rating as one decimal (e.g., 4.5, 2.0)
+df["Rating"] = df["Rating_num"].apply(
+    lambda x: format_rating_one_decimal(x) if not (isinstance(x, float) and math.isnan(x)) else ""
+)
 
-# Now create Star numeric column (1-5) and Star_Display
-# If Star column already numeric-like, coerce; else infer from Rating_num; else generate
-star_nums = []
-star_display = []
+# Build Star numeric + display (use rating where possible)
+star_nums, star_display = [], []
 for idx, row in df.iterrows():
     raw_star = str(row.get("Star", "")).strip()
     star_num = None
-    # try if raw_star is numeric string
     try:
         s_num = to_float_or_nan(raw_star)
         if not math.isnan(s_num):
             star_num = float(s_num)
     except Exception:
         pass
-    # if still None, infer from Rating_num
     if star_num is None or math.isnan(star_num):
         rn = df.at[idx, "Rating_num"]
         if not (isinstance(rn, float) and math.isnan(rn)):
-            # round rating to nearest 0.5 -> use as star_num
             star_num = round(rn * 2) / 2.0
         else:
             star_num = float('nan')
-
-    # if still NaN, generate but keep some as missing
     if isinstance(star_num, float) and math.isnan(star_num):
-        # 10% will remain NaN (missing), others get generated 1.0-5.0
         if random.random() < 0.10:
             star_nums.append(float('nan'))
             star_display.append("")
             continue
         else:
-            gen = random.choice([1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0])
-            star_num = gen
-
+            star_num = random.choice([1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0])
     star_nums.append(star_num)
     star_display.append(rating_to_star_display(star_num))
 
 df["Star_num"] = star_nums
-df["Star_Display"] = star_display
+df["Star"] = star_display  # overwrite Star with display-friendly star string
 
-# For Review: if empty, try to fill with Review_text if available (we already normalized Review<-Review_text),
-# else generate a short placeholder review for demo, but leave ~10% empty to simulate users not writing review.
+# Fill Review if empty (but leave ~10% empty)
 placeholder_positive = [
     "Excellent product — works as expected, highly recommend.",
     "Very satisfied with purchase. Good value for money."
@@ -286,17 +251,12 @@ placeholder_negative = [
     "Poor quality and bad customer service."
 ]
 
-# We'll use a simple heuristic: if star>=4 => positive, 3 => neutral, <=2.5 => negative
 for idx, row in df.iterrows():
     r = str(row.get("Review", "")).strip()
     if r == "" or r.lower() in ["nan", "none", "null"]:
-        # maybe fill from Review_text column if present (we already set Review to Review_text earlier).
-        # If still empty, decide randomly to fill or leave blank
         if random.random() < 0.10:
-            # keep empty ~10%
             df.at[idx, "Review"] = ""
             continue
-        # pick based on star_num
         sn = df.at[idx, "Star_num"]
         try:
             if not (isinstance(sn, float) and math.isnan(sn)):
@@ -307,34 +267,22 @@ for idx, row in df.iterrows():
                 else:
                     df.at[idx, "Review"] = random.choice(placeholder_negative)
             else:
-                # no star -> neutral placeholder
                 df.at[idx, "Review"] = random.choice(placeholder_neutral)
         except Exception:
             df.at[idx, "Review"] = ""
 
-# Final tidy: produce the final output columns in requested names
-# 1) UniqueId
-# 2) Category
-# 3) Purchasedate
-# 4) EmailId
-# 5) Star (we'll output Star_Display)
-# 6) Rating (one-decimal string)
-# 7) Review
-
+# Final tidy for transformed output columns
 df_final = pd.DataFrame({
     "UniqueId": df["UniqueId"].astype(str),
     "Category": df["Category"].astype(str),
     "Purchasedate": df["Purchasedate"].astype(str),
     "EmailId": df["EmailId"].astype(str),
-    "Star": df["Star_Display"].astype(str),
-    "Rating": df["Rating"].astype(str),
+    "Star": df["Star"].astype(str),
+    "Rating": df["Rating"].astype(str),   # one-decimal string
     "Review": df["Review"].astype(str)
-})
+}).replace({"nan": ""})
 
-# Normalize some empty values to real empties rather than strings "nan"
-df_final = df_final.replace({"nan": ""})
-
-# Save to session state for downstream processing/sentiment analysis
+# Hold for downstream processing
 st.session_state.df_processed_raw = df_final.copy()
 
 # ---------------------------
@@ -382,24 +330,18 @@ st.sidebar.info(f"Current Negative threshold: {NEGATIVE_THRESHOLD:.2f}")
 # Sentiment analysis helpers
 # ---------------------------
 def analyze_all_sentiments(texts):
-    """
-    texts: list of strings (reviews)
-    returns: labels, confidences
-    """
     labels, confidences = [], []
     if sentiment_pipeline is None:
-        # fallback: naive rule based (very rough)
         for t in texts:
             t_low = (t or "").lower()
-            if any(w in t_low for w in ["worst", "not", "don't", "poor", "bad", "waste", "defective", "stop"]):
+            if any(w in t_low for w in ["worst", "not", "don't", "doesn't", "poor", "bad", "waste", "defective", "stop"]):
                 labels.append("Negative"); confidences.append(0.85)
-            elif any(w in t_low for w in ["good", "excellent", "best", "great", "satisfied", "love"]):
+            elif any(w in t_low for w in ["good", "excellent", "best", "great", "satisfied", "love", "awesome"]):
                 labels.append("Positive"); confidences.append(0.85)
             else:
                 labels.append("Neutral"); confidences.append(0.60)
         return labels, confidences
 
-    # truncate to 512 tokens approximate by characters
     results = sentiment_pipeline([str(t)[:512] for t in texts], return_all_scores=True)
     for res in results:
         top = max(res, key=lambda x: x['score'])
@@ -422,7 +364,7 @@ def generate_response(sentiment, review):
         output = model.generate(**inputs, max_new_tokens=150)
         llm_reply = tokenizer.decode(output[0], skip_special_tokens=True).strip()
         return f"Thank you for your review. We will look into the issue. {llm_reply.rstrip('.!?')}."
-    except Exception as e:
+    except Exception:
         return "Thank you for your review. We will look into the issue."
 
 # ---------------------------
@@ -475,6 +417,7 @@ st.dataframe(styled, use_container_width=True)
 # Trigger Email Section (for Negative with threshold)
 # ---------------------------
 st.subheader("Trigger Email Actions (Negative reviews meeting threshold)")
+
 negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 
 for idx, row in negative_df.iterrows():
@@ -482,14 +425,29 @@ for idx, row in negative_df.iterrows():
     with st.expander(f"Email for Review #{idx+1} - {uid}", expanded=False):
         st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
         st.markdown(f"**Date:** {row.get('Purchasedate', 'N/A')}")
+        st.markdown(f"**Star:** {row.get('Star', 'N/A')}")
+        st.markdown(f"**Rating:** {row.get('Rating', 'N/A')}")
         st.markdown(f"**Review:** {row.get('Review', '')}")
-        st.markdown(f"**Response to be sent:** {row.get('Response', '')}")
         st.markdown(f"**Model Confidence:** {float(row['Confidence']):.2f} (threshold {NEGATIVE_THRESHOLD:.2f})")
+
+        # Show default response and provide an editable textbox override
+        default_resp = row.get('Response', '')
+        st.markdown("**Default Response (auto-generated):**")
+        st.info(default_resp if default_resp else "No response generated.")
+
+        manual_key = f"manual_response_{idx}"
+        manual_text = st.text_area(
+            "✍️ Edit response before sending (optional)",
+            value="",
+            key=manual_key,
+            placeholder="Type your custom response here. Leave empty to use the default above."
+        )
 
         if st.button(f"Send Email (Row {idx})", key=f"send_button_{idx}"):
             recipient_email = row.get("EmailId", "")
             st.session_state.open_expander_index = idx
             if recipient_email:
+                chosen_response = manual_text.strip() if manual_text and manual_text.strip() else default_resp
                 subject = f"Response to your review (ID: {uid})"
                 body = (
                     f"Dear Customer,\n\n"
@@ -499,8 +457,10 @@ for idx, row in negative_df.iterrows():
                     f"ID: {uid}\n"
                     f"Category: {row.get('Category', 'N/A')}\n"
                     f"Date: {row.get('Purchasedate', 'N/A')}\n"
+                    f"Star: {row.get('Star', '')}\n"
+                    f"Rating: {row.get('Rating', '')}\n"
                     f"Review:\n{row.get('Review','')}\n\n"
-                    f"Our Response:\n{row.get('Response','')}\n"
+                    f"Our Response:\n{chosen_response}\n"
                     f"---\n\n"
                     f"Best regards,\nCustomer Support Team"
                 )
