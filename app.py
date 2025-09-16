@@ -13,7 +13,6 @@ import time
 from sklearn.metrics import accuracy_score
 import numpy as np
 import random
-from io import BytesIO
 
 # ---------------------------
 # Fix torch Streamlit bug
@@ -25,8 +24,8 @@ except AttributeError:
 
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
-st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
-st.title("Customer Review Sentiment Analyzer & Auto-Responder with Metrics")
+st.set_page_config(page_title="ReviewPulse AI: Star Ratings, Sentiment & Smart Replies", layout="wide")
+st.title("ReviewPulse AI: Star Ratings, Sentiment & Smart Replies")
 
 # ---------------------------
 # Email Configuration
@@ -34,7 +33,6 @@ st.title("Customer Review Sentiment Analyzer & Auto-Responder with Metrics")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "spkincident@gmail.com"
-# Make sure to set in Streamlit secrets
 SENDER_PASSWORD = st.secrets.get("email_password", None)    # 🔁 Secure
 
 def send_email(recipient_email, subject, body):
@@ -65,7 +63,9 @@ if "open_expander_index" not in st.session_state:
     st.session_state.open_expander_index = None
 
 uploaded_file = st.file_uploader("📁 Upload CSV (supports columns like Unique_ID,Category,Review_text,Date,Email)", type="csv")
-sample_data_path = "sample_data.csv"
+
+# <-- Updated sample data filename: use the provided transformed CSV
+sample_data_path = "product_reviews_with_stars_filled.csv"
 
 # ---------------------------
 # Handle data input
@@ -77,24 +77,25 @@ if uploaded_file:
     df = pd.read_csv(uploaded_file, dtype=str)
 else:
     if os.path.exists(sample_data_path):
-        st.success("Using 'sample_data.csv' from directory.")
+        st.success(f"Using '{sample_data_path}' from directory.")
         df = pd.read_csv(sample_data_path, dtype=str)
     else:
-        st.info("No file uploaded — please upload a CSV or place 'sample_data.csv' in the app directory.")
+        st.info(f"No file uploaded — please upload a CSV or place '{sample_data_path}' in the app directory.")
         st.stop()
 
-# Normalize column names to lower for robust matching
+# Normalize column names to robust matching
 df.columns = [c.strip() for c in df.columns]
 col_map = {c.lower(): c for c in df.columns}
 
 # Ensure core columns exist (we'll coerce/rename)
 if not any(k in col_map for k in ["review_text", "review", "reviewtext"]):
-    st.error("CSV must contain a 'Review_text' (or 'Review') column.")
-    st.stop()
+    # allow 'Review' being 'Review' or 'Review_text'
+    if "Review_text" not in df.columns and "Review" not in df.columns:
+        st.error("CSV must contain a 'Review_text' (or 'Review') column.")
+        st.stop()
 
 # Make a copy and normalize original review column name to 'Review_text'
 if "Review_text" not in df.columns:
-    # try lowercase matches
     for possible in ["review_text", "review", "reviewtext"]:
         if possible in col_map:
             df.rename(columns={col_map[possible]: "Review_text"}, inplace=True)
@@ -122,15 +123,10 @@ if "Email" not in df.columns:
 # ---------------------------
 # Normalize and create target columns
 # ---------------------------
-# Convert everything to string to avoid dtype issues (we'll coerce numeric columns later)
 df["Review_text"] = df["Review_text"].fillna("").astype(str)
 df["Unique_ID"] = df.get("Unique_ID", pd.Series([None]*len(df))).astype(object)
 df["Date"] = df.get("Date", pd.Series([None]*len(df))).astype(object)
 df["Email"] = df.get("Email", pd.Series([None]*len(df))).astype(object)
-
-# Target column names requested:
-# 1) UniqueId 2) Category 3) Purchasedate 4) EmailId 5) Star 6) Rating 7) Review
-# We'll create/rename accordingly.
 
 # Category rename
 if "Category" not in df.columns:
@@ -141,14 +137,13 @@ if "Category" not in df.columns:
 if "Category" not in df.columns:
     df["Category"] = "unknown"
 
-# Create Purchasedate from Date (user asked this mapping)
+# Create Purchasedate from Date
 df["Purchasedate"] = df["Date"]
 
 # EmailId mapping
 df["EmailId"] = df["Email"]
 
 # Prepare Star and Rating columns if exist; if not, create placeholders
-# Possible incoming names: Star, star, rating, Rating
 if "Star" not in df.columns:
     for possible in ["star", "stars"]:
         if possible in col_map:
@@ -161,25 +156,20 @@ if "Rating" not in df.columns:
             df.rename(columns={col_map[possible]: "Rating"}, inplace=True)
             break
 
-# Coerce numeric values where possible
 def to_numeric_or_nan(x):
     try:
         if pd.isna(x):
             return np.nan
-        # treat empty or whitespace as missing
         s = str(x).strip()
         if s == "" or s.lower() in ["nan", "none", "null"]:
             return np.nan
-        # treat 0 or "0" as missing per your request
         if s in ["0", "0.0"]:
             return np.nan
-        # remove commas etc.
         s2 = s.replace(",", "")
         return float(s2)
     except Exception:
         return np.nan
 
-# If Star or Rating exist, coerce; otherwise create NaNs
 if "Star" in df.columns:
     df["Star_num"] = df["Star"].apply(to_numeric_or_nan)
 else:
@@ -190,32 +180,27 @@ if "Rating" in df.columns:
 else:
     df["Rating_num"] = np.nan
 
-# Review text final column (user requested 'Review')
-df["Review"] = df["Review_text"].replace("", np.nan)  # empty -> NaN
+df["Review"] = df["Review_text"].replace("", np.nan)
 
 # ---------------------------
 # Randomly generate missing Star/Rating/Review values
 # ---------------------------
-# Settings — adjust these probabilities if you want more/less synthetic values
 RANDOM_SEED = 42
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 
-# fraction of missing fields that we WILL fill (others remain NaN) — user asked some should be null
-FILL_MISSING_FRACTION = 0.75  # fill 75% of missing values, leave 25% intentionally null
+# fill fraction (tweakable)
+FILL_MISSING_FRACTION = 0.75
 
 def maybe_fill_star(idx):
     if not np.isnan(df.at[idx, "Star_num"]):
         return df.at[idx, "Star_num"]
-    # decide whether to fill this missing value
     if random.random() <= FILL_MISSING_FRACTION:
-        # realistic integer 1-5 distribution (skewed slightly positive)
         return float(np.random.choice([5,4,3,2,1], p=[0.35,0.30,0.18,0.10,0.07]))
     else:
         return np.nan
 
 def maybe_fill_rating(idx, star_value):
-    # rating can be fractional, around star_value with small noise
     if not np.isnan(df.at[idx, "Rating_num"]):
         return df.at[idx, "Rating_num"]
     if random.random() <= FILL_MISSING_FRACTION:
@@ -223,7 +208,6 @@ def maybe_fill_rating(idx, star_value):
             base = star_value
         else:
             base = np.random.uniform(2.5,4.5)
-        # add random noise
         rating = round(max(1.0, min(5.0, np.random.normal(loc=base, scale=0.5))), 1)
         return rating
     else:
@@ -232,42 +216,24 @@ def maybe_fill_rating(idx, star_value):
 def maybe_fill_review(idx):
     if pd.notna(df.at[idx, "Review"]):
         return df.at[idx, "Review"]
-    # some customers will leave blank — keep some blank intentionally
     if random.random() <= FILL_MISSING_FRACTION:
-        # create a short synthetic review based on Category and Star if available
         cat = str(df.at[idx, "Category"]) if pd.notna(df.at[idx, "Category"]) else "product"
         star = df.at[idx, "Star_num"]
         if pd.isna(star):
             star = round(np.random.choice([5,4,3,2,1]),0)
         star = int(star)
         templates = {
-            5: [
-                "Excellent! Very satisfied with the purchase.",
-                "Fantastic product — exceeded my expectations."
-            ],
-            4: [
-                "Good product, mostly satisfied.",
-                "Works well; a couple of minor issues but overall happy."
-            ],
-            3: [
-                "Average quality, acceptable for the price.",
-                "It's okay — neither great nor terrible."
-            ],
-            2: [
-                "Below expectations. Some problems encountered.",
-                "Not very satisfied; needs improvement."
-            ],
-            1: [
-                "Very poor experience. Not recommended.",
-                "Stopped working within days — very disappointed."
-            ]
+            5: ["Excellent! Very satisfied with the purchase.", "Fantastic product — exceeded my expectations."],
+            4: ["Good product, mostly satisfied.", "Works well; a couple of minor issues but overall happy."],
+            3: ["Average quality, acceptable for the price.", "It's okay — neither great nor terrible."],
+            2: ["Below expectations. Some problems encountered.", "Not very satisfied; needs improvement."],
+            1: ["Very poor experience. Not recommended.", "Stopped working within days — very disappointed."]
         }
         txt = random.choice(templates.get(star, templates[3]))
         return f"{txt} ({cat})"
     else:
         return np.nan
 
-# Apply generation
 for idx in df.index:
     star_filled = maybe_fill_star(idx)
     df.at[idx, "Star_num"] = star_filled
@@ -276,15 +242,12 @@ for idx in df.index:
     review_filled = maybe_fill_review(idx)
     df.at[idx, "Review"] = review_filled
 
-# Convert Star_num to integer where possible, but allow NaN
 df["Star"] = df["Star_num"].apply(lambda x: int(x) if (pd.notna(x) and float(x).is_integer()) else (np.nan if pd.isna(x) else float(x)))
 
-# Create star display, e.g. ★★★☆☆ — if Star is fractional, round to nearest int for display
 def star_display_from_value(val):
     if pd.isna(val):
         return None
     try:
-        # round to nearest integer between 1 and 5
         n = int(round(float(val)))
         n = max(1, min(5, n))
         full = "★" * n
@@ -302,7 +265,6 @@ final_cols = [
     "Unique_ID", "Category", "Purchasedate", "EmailId",
     "Star", "Star_Display", "Rating_num", "Review"
 ]
-# ensure all present
 for c in final_cols:
     if c not in df.columns:
         df[c] = np.nan
@@ -324,10 +286,8 @@ df_final.to_csv(out_filename, index=False, encoding="utf-8-sig")
 st.success(f"Transformed CSV saved as `{out_filename}` (UTF-8 BOM). Rows: {len(df_final)}")
 
 # ---------------------------
-# Replace the dataframe used downstream with df['Review'] referencing our filled Review column
+# Load models (cached)
 # ---------------------------
-
-# reuse minimal sentiment pipeline loading from your prior app — cached resources
 @st.cache_resource
 def load_sentiment_pipeline():
     return pipeline("sentiment-analysis", model="cardiffnlp/twitter-roberta-base-sentiment")
@@ -338,7 +298,6 @@ def load_llm_model():
     model = AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small")
     return tokenizer, model
 
-# Load models (may take time on first run)
 with st.spinner("Loading models..."):
     sentiment_pipeline = load_sentiment_pipeline()
     tokenizer, model = load_llm_model()
@@ -364,7 +323,6 @@ st.sidebar.info(f"Current Negative threshold: {NEGATIVE_THRESHOLD:.2f}")
 # Sentiment analysis functions
 # ---------------------------
 def analyze_all_sentiments(texts):
-    # guard against empty strings
     inputs = [(t[:512] if isinstance(t, str) else "") for t in texts]
     results = sentiment_pipeline(inputs, return_all_scores=True)
     labels, confidences = [], []
@@ -405,7 +363,6 @@ if "df_processed" not in st.session_state or not st.session_state.get("processed
         processing_times.append(end_time - start_time)
         progress_bar.progress((i + 1) / max(1, len(texts)))
 
-    # attach results back to df_final for display and download
     df_display = df_final.copy()
     df_display["Sentiment"] = sentiments
     df_display["Confidence"] = confidences
@@ -445,7 +402,6 @@ negative_df = df_display[df_display["Email_Trigger"] == "Yes"].reset_index(drop=
 
 for idx, row in negative_df.iterrows():
     uid = row.get('UniqueId', f'Row {idx+1}')
-    expander_key = f"expander_{idx}"
     expanded = st.session_state.open_expander_index == idx
 
     with st.expander(f"Email for Review #{idx+1} - {uid}", expanded=expanded):
@@ -540,16 +496,10 @@ if "Category" in df_display.columns:
 # Download button for the transformed CSV (UTF-8 BOM)
 # ---------------------------
 st.subheader("Download transformed CSV")
-# prepare csv bytes
-csv_bytes = df_final.rename(columns={
-    "Unique_ID": "UniqueId",
-    "Rating_num": "Rating",
-    "Review": "Review"
-})[["Unique_ID","Category","Purchasedate","EmailId","Star","Star_Display","Rating_num","Review"]].to_csv(index=False, encoding="utf-8-sig")
-
+csv_bytes = df_final.to_csv(index=False, encoding="utf-8-sig")
 st.download_button(
-    label="Download transformed CSV (product_reviews_with_stars_filled.csv)",
+    label=f"Download transformed CSV ({out_filename})",
     data=csv_bytes,
-    file_name="product_reviews_with_stars_filled.csv",
+    file_name=out_filename,
     mime="text/csv"
 )
