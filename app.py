@@ -384,8 +384,9 @@ if not st.session_state.processed:
         prog.progress((i + 1) / max(1, len(raw_reviews)))
 
     df_out = st.session_state.df_processed_raw.copy()
+    # ensure confidence stored as float numbers
+    df_out["Confidence"] = [float(x) if x != "" else 0.0 for x in confidences]
     df_out["Sentiment"] = sentiments
-    df_out["Confidence"] = confidences
     df_out["Response"] = responses
     df_out["Processing_Time_sec"] = proc_times
 
@@ -402,15 +403,43 @@ df["Email_Trigger"] = df.apply(
 st.success("Processing complete!")
 
 # ---------------------------
+# Prepare a display-only DataFrame with truncated review & formatted confidence
+# ---------------------------
+PREVIEW_REVIEW_MAX = 120  # characters to show in preview; adjust as needed
+
+df_display = df.copy()
+
+# Truncate review for display only (keep full Review in df)
+def truncate_review_for_display(text, max_chars=PREVIEW_REVIEW_MAX):
+    if not isinstance(text, str):
+        return ""
+    txt = text.strip()
+    return txt if len(txt) <= max_chars else txt[: max_chars - 3] + "..."
+
+df_display["Review"] = df_display["Review"].apply(lambda x: truncate_review_for_display(x, PREVIEW_REVIEW_MAX))
+
+# Format Confidence to two decimal places for display
+def format_confidence_two_decimals(x):
+    try:
+        if x == "" or x is None:
+            return ""
+        return f"{float(x):.2f}"
+    except Exception:
+        return ""
+
+df_display["Confidence"] = df_display["Confidence"].apply(format_confidence_two_decimals)
+
+# ---------------------------
 # Preview Table (highlight negatives)
 # ---------------------------
 st.subheader("Preview (Transformed & Analyzed)")
+
 def highlight_negative_row(row):
     return ['background-color: #ffe6e6'] * len(row) if row.get("Sentiment", "") == "Negative" else [''] * len(row)
 
 cols_to_show = ["UniqueId", "Category", "Purchasedate", "EmailId", "Star", "Rating", "Review", "Sentiment", "Confidence", "Email_Trigger"]
-cols_to_show = [c for c in cols_to_show if c in df.columns]
-styled = df[cols_to_show].style.apply(highlight_negative_row, axis=1)
+cols_to_show = [c for c in cols_to_show if c in df_display.columns]
+styled = df_display[cols_to_show].style.apply(highlight_negative_row, axis=1)
 st.dataframe(styled, use_container_width=True)
 
 # ---------------------------
@@ -427,6 +456,7 @@ for idx, row in negative_df.iterrows():
         st.markdown(f"**Date:** {row.get('Purchasedate', 'N/A')}")
         st.markdown(f"**Star:** {row.get('Star', 'N/A')}")
         st.markdown(f"**Rating:** {row.get('Rating', 'N/A')}")
+        # show full review here (not truncated)
         st.markdown(f"**Review:** {row.get('Review', '')}")
         st.markdown(f"**Model Confidence:** {float(row['Confidence']):.2f} (threshold {NEGATIVE_THRESHOLD:.2f})")
 
