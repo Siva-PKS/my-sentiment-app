@@ -22,7 +22,7 @@ except AttributeError:
 warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
 
 # ---------------------------
-# App Config (MUST be before UI usage)
+# App Config
 # ---------------------------
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
 st.title("Customer Review Sentiment Analyzer & Auto-Responder with Metrics")
@@ -114,8 +114,8 @@ label_map = {
 # ---------------------------
 st.sidebar.header("Settings")
 NEGATIVE_THRESHOLD = st.sidebar.slider(
-    "Negative confidence threshold",
-    0.5, 0.95, 0.7
+    "Negative confidence threshold (for Email Trigger)",
+    min_value=0.50, max_value=0.95, value=0.70, step=0.01
 )
 
 # ---------------------------
@@ -133,7 +133,10 @@ def analyze_all_sentiments(texts):
 def generate_response(sentiment, review):
     if sentiment != "Negative":
         return "No response needed."
-    prompt = f"Write a polite reply:\n{review}"
+    prompt = (
+        "You are a polite and helpful customer support agent. "
+        f"Write a reply:\n{review}"
+    )
     inputs = tokenizer(prompt, return_tensors="pt", truncation=True)
     output = model.generate(**inputs, max_new_tokens=100)
     reply = tokenizer.decode(output[0], skip_special_tokens=True)
@@ -146,7 +149,6 @@ if not st.session_state.processed:
     sentiments, confidences = analyze_all_sentiments(df["Review_text"].tolist())
 
     responses, times = [], []
-
     for i, row in df.iterrows():
         start = time.time()
         responses.append(generate_response(sentiments[i], row["Review_text"]))
@@ -170,10 +172,24 @@ df["Email_Trigger"] = df.apply(
 st.success("Processing complete!")
 
 # ---------------------------
-# Preview
+# Preview with Highlight
 # ---------------------------
 st.subheader("Preview")
-st.dataframe(df, use_container_width=True)
+
+def highlight_negative(row):
+    if row["Sentiment"] == "Negative" and row["Confidence"] >= NEGATIVE_THRESHOLD:
+        return ['background-color: #ffcccc'] * len(row)
+    elif row["Sentiment"] == "Negative":
+        return ['background-color: #ffe6e6'] * len(row)
+    else:
+        return [''] * len(row)
+
+cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text",
+                               "Sentiment", "Confidence", "Response", "Email_Trigger"]
+                if col in df.columns]
+
+styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
+st.dataframe(styled_df, use_container_width=True)
 
 # ---------------------------
 # Trigger Email Section
@@ -188,8 +204,9 @@ for idx, row in negative_df.iterrows():
 
         st.markdown(f"**Review:** {row['Review_text']}")
         st.markdown(f"**Response to be sent:** {row['Response']}")
+        st.markdown(f"**Confidence:** {row['Confidence']:.2f}")
 
-        # ✅ Manual Response Checkbox
+        # ✅ Manual Response
         use_manual = st.checkbox("Use Manual Response", key=f"chk_{idx}")
 
         manual_text = ""
@@ -200,7 +217,6 @@ for idx, row in negative_df.iterrows():
 
             recipient_email = row.get("Email", "")
 
-            # ✅ Final response selection
             final_response = (
                 manual_text.strip()
                 if use_manual and manual_text.strip()
@@ -233,7 +249,10 @@ Support Team
 # ---------------------------
 st.subheader("Metrics")
 acc = accuracy_score(df["Sentiment"], df["Sentiment"])
+avg_time = df["Processing_Time_sec"].mean()
+
 st.write(f"Accuracy: {acc*100:.2f}%")
+st.write(f"Avg Processing Time: {avg_time:.2f} sec")
 
 # ---------------------------
 # Chart
@@ -241,7 +260,8 @@ st.write(f"Accuracy: {acc*100:.2f}%")
 chart_data = df["Sentiment"].value_counts().reset_index()
 chart_data.columns = ["Sentiment", "Count"]
 
-fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment")
+fig = px.bar(chart_data, x="Sentiment", y="Count", color="Sentiment",
+             color_discrete_map={"Positive": "green", "Neutral": "gray", "Negative": "red"})
 st.plotly_chart(fig)
 
 # ---------------------------
