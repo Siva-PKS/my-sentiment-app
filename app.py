@@ -174,21 +174,26 @@ st.success("Processing complete!")
 # ---------------------------
 # Preview with Highlight
 # ---------------------------
+# ---------------------------
+# Preview with Smart Highlight
+# ---------------------------
 st.subheader("Preview")
 
 def highlight_negative(row):
     if row["Sentiment"] == "Negative" and row["Confidence"] >= NEGATIVE_THRESHOLD:
-        return ['background-color: #ffcccc'] * len(row)
+        return ['background-color: #ffcccc'] * len(row)   # Triggered
     elif row["Sentiment"] == "Negative":
-        return ['background-color: #ffe6e6'] * len(row)
+        return ['background-color: #ffe6e6'] * len(row)   # Not triggered
     else:
         return [''] * len(row)
 
-cols_to_show = [col for col in ["Unique_ID", "Date", "Category", "Review_text",
-                               "Sentiment", "Confidence", "Response", "Email_Trigger"]
-                if col in df.columns]
+cols_to_show = [col for col in [
+    "Unique_ID", "Date", "Category", "Review_text",
+    "Sentiment", "Confidence", "Response", "Email_Trigger"
+] if col in df.columns]
 
 styled_df = df[cols_to_show].style.apply(highlight_negative, axis=1)
+
 st.dataframe(styled_df, use_container_width=True)
 
 # ---------------------------
