@@ -188,23 +188,6 @@ st.metric("Trigger Rate", f"{(triggered/total)*100:.1f}%")
 show_only = st.checkbox("Show only Email Trigger rows")
 
 # ---------------------------
-# Filters (NEW)
-# ---------------------------
-st.subheader("Filters")
-
-filter_option = st.radio(
-    "Select View",
-    ["All", "Only Triggered", "Only Negative"]
-)
-
-if filter_option == "Only Triggered":
-    filtered_df = df[df["Email_Trigger"] == "Yes"]
-elif filter_option == "Only Negative":
-    filtered_df = df[df["Sentiment"] == "Negative"]
-else:
-    filtered_df = df.copy()
-
-# ---------------------------
 # Preview
 # ---------------------------
 st.subheader("Preview")
@@ -213,24 +196,21 @@ display_df = df[df["Email_Trigger"] == "Yes"] if show_only else df
 
 def highlight_negative(row):
     if row["Email_Trigger"] == "Yes":
-        return ['background-color: #ff9999; border: 2px solid red'] * len(row)
+        return ['background-color: #ffcccc'] * len(row)
     elif row["Sentiment"] == "Negative":
         return ['background-color: #ffe6e6'] * len(row)
     else:
         return [''] * len(row)
 
+cols_to_show = [col for col in [
+    "Unique_ID", "Date", "Category", "Review_text",
+    "Sentiment", "Confidence", "Response", "Email_Trigger", "Email_Status"
+] if col in display_df.columns]
 
-# ---------------------------
-# Display Table with HTML
-# ---------------------------
-st.markdown("### Data Table")
+styled_df = display_df[cols_to_show].style.apply(highlight_negative, axis=1)
+st.dataframe(styled_df, use_container_width=True)
 
-st.write(
-    display_df[cols_to_show].to_html(escape=False, index=False),
-    unsafe_allow_html=True
-)
-
-st.caption("🔴 Triggered | 🌸 Negative | 📊 Confidence Bar | 💡 Explanation")
+st.caption("🔴 Triggered | 🌸 Negative")
 
 # ---------------------------
 # Bulk Send (NEW)
