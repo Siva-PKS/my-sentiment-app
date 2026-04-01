@@ -219,43 +219,6 @@ def highlight_negative(row):
     else:
         return [''] * len(row)
 
-# ---------------------------
-# NEW: Tooltip / Explanation
-# ---------------------------
-def explain_row(row):
-    if row["Email_Trigger"] == "Yes":
-        return f"Triggered: Negative sentiment with {row['Confidence']:.2f} ≥ threshold"
-    elif row["Sentiment"] == "Negative":
-        return f"Negative but below threshold ({row['Confidence']:.2f})"
-    else:
-        return "No action required"
-
-display_df["Explanation"] = display_df.apply(explain_row, axis=1)
-
-# ---------------------------
-# NEW: Confidence Bar
-# ---------------------------
-def confidence_bar(val):
-    color = "#ff4d4d" if val >= NEGATIVE_THRESHOLD else "#ffa64d"
-    return f"""
-    <div style="background-color:#e6e6e6; border-radius:5px; width:100%;">
-        <div style="background-color:{color}; width:{val*100}%; height:10px; border-radius:5px;">
-        </div>
-    </div>
-    """
-
-display_df["Confidence_Bar"] = display_df["Confidence"].apply(confidence_bar)
-
-# ---------------------------
-# Columns to display
-# ---------------------------
-cols_to_show = [
-    "Unique_ID", "Date", "Category", "Review_text",
-    "Sentiment", "Confidence", "Confidence_Bar",
-    "Response", "Email_Trigger", "Email_Status", "Explanation"
-]
-
-cols_to_show = [c for c in cols_to_show if c in display_df.columns]
 
 # ---------------------------
 # Display Table with HTML
