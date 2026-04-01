@@ -41,7 +41,7 @@ def send_email(recipient_email, subject, body):
         msg["From"] = SENDER_EMAIL
         msg["To"] = recipient_email
         msg["Subject"] = subject
-        msg.attach(MIMEText(body, "html"))   # upgraded to HTML
+        msg.attach(MIMEText(body, "html"))
 
         with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
             server.starttls()
@@ -159,13 +159,16 @@ if not st.session_state.processed:
     df["Confidence"] = confidences
     df["Response"] = responses
     df["Processing_Time_sec"] = times
-    df["Email_Status"] = "Pending"   # NEW
+    df["Email_Status"] = "Pending"
 
     st.session_state.df_processed = df.copy()
     st.session_state.processed = True
 
 df = st.session_state.df_processed.copy()
 
+# ---------------------------
+# Email Trigger
+# ---------------------------
 df["Email_Trigger"] = df.apply(
     lambda r: "Yes" if (r["Sentiment"] == "Negative" and r["Confidence"] >= NEGATIVE_THRESHOLD) else "No",
     axis=1
@@ -174,7 +177,7 @@ df["Email_Trigger"] = df.apply(
 st.success("Processing complete!")
 
 # ---------------------------
-# Metrics (NEW)
+# Metrics (FIXED)
 # ---------------------------
 total = len(df)
 triggered = len(df[df["Email_Trigger"] == "Yes"])
@@ -185,10 +188,11 @@ with col1:
     st.metric("Emails to Send", triggered)
 
 with col2:
-    st.metric("Trigger Rate", f"{(triggered/total)*100:.1f}%")
+    trigger_rate = (triggered / total) * 100 if total > 0 else 0
+    st.metric("Trigger Rate", f"{trigger_rate:.1f}%")
 
 # ---------------------------
-# Toggle (NEW)
+# Toggle
 # ---------------------------
 show_only = st.checkbox("Show only Email Trigger rows")
 
@@ -197,7 +201,7 @@ show_only = st.checkbox("Show only Email Trigger rows")
 # ---------------------------
 st.subheader("Preview")
 
-display_df = df[df["Email_Trigger"] == "Yes"] if show_only else df
+display_df = df[df["Email_Trigger"] == "Yes"].copy() if show_only else df.copy()
 
 def highlight_negative(row):
     if row["Email_Trigger"] == "Yes":
@@ -215,24 +219,22 @@ cols_to_show = [col for col in [
 styled_df = display_df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
+# Legend
 st.markdown("""
 <div style="display:flex; gap:25px; align-items:center; margin-top:5px;">
-
     <div style="display:flex; align-items:center; gap:10px;">
         <div style="width:18px; height:18px; background-color:#ff0000; border-radius:4px;"></div>
         <span style="color:black; font-weight:500;">Triggered (High Confidence)</span>
     </div>
-
     <div style="display:flex; align-items:center; gap:10px;">
         <div style="width:18px; height:18px; background-color:#ff9999; border-radius:4px;"></div>
         <span style="color:black; font-weight:500;">Negative (Low Confidence)</span>
     </div>
-
 </div>
 """, unsafe_allow_html=True)
 
 # ---------------------------
-# Bulk Send (NEW)
+# Bulk Send
 # ---------------------------
 if st.button("🚀 Send All Emails"):
     for idx, row in df[df["Email_Trigger"] == "Yes"].iterrows():
@@ -243,6 +245,8 @@ if st.button("🚀 Send All Emails"):
 
         if send_email(row.get("Email", ""), "Customer Support", body):
             df.at[idx, "Email_Status"] = "Sent"
+
+    st.session_state.df_processed = df.copy()
 
 # ---------------------------
 # Trigger Email Section
@@ -256,7 +260,7 @@ for idx, row in negative_df.iterrows():
     with st.expander(f"Email for Review #{idx+1} - {uid}"):
 
         st.markdown(f"**Review:** {row['Review_text']}")
-        st.progress(row["Confidence"])   # NEW
+        st.progress(row["Confidence"])
         st.markdown(f"**Response to be sent:** {row['Response']}")
 
         use_manual = st.checkbox("Use Manual Response", key=f"chk_{idx}")
@@ -282,12 +286,13 @@ for idx, row in negative_df.iterrows():
             if recipient_email:
                 if send_email(recipient_email, "Customer Support", body):
                     df.at[idx, "Email_Status"] = "Sent"
+                    st.session_state.df_processed = df.copy()
                     st.success("Email sent")
             else:
                 st.warning("No Email found.")
 
 # ---------------------------
-# Metrics
+# Metrics Summary
 # ---------------------------
 st.subheader("Metrics")
 acc = accuracy_score(df["Sentiment"], df["Sentiment"])
