@@ -216,8 +216,19 @@ styled_df = display_df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
 st.markdown("""
-<span style='color:#ff0000;'>☑️ Triggered</span> &nbsp;&nbsp;
-<span style='color:#ff9999;'>☑️ Negative</span>
+<div style="display:flex; gap:20px; align-items:center;">
+
+    <div style="display:flex; align-items:center; gap:8px;">
+        <div style="width:16px; height:16px; background-color:#ff0000; border-radius:3px;"></div>
+        <span style="color:black;">Triggered</span>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:8px;">
+        <div style="width:16px; height:16px; background-color:#ff9999; border-radius:3px;"></div>
+        <span style="color:black;">Negative</span>
+    </div>
+
+</div>
 """, unsafe_allow_html=True)
 
 # ---------------------------
