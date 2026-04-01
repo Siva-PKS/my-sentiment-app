@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hu
 # App Config
 # ---------------------------
 st.set_page_config(page_title="Sentiment Analyzer & Auto-Responder", layout="wide")
-st.title("Customer Review Sentiment Analyzer & Auto-Responder with Metrics")
+st.title("AI-Driven Sentiment Analysis & Automated Customer Response Platform")
 
 # ---------------------------
 # Email Configuration
