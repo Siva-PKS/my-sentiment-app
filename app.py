@@ -191,10 +191,26 @@ with col2:
     trigger_rate = (triggered / total) * 100 if total > 0 else 0
     st.metric("Trigger Rate", f"{trigger_rate:.1f}%")
 
+
+# Legend
+st.markdown("""
+<div style="display:flex; gap:25px; align-items:center; margin-top:5px;">
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:18px; height:18px; background-color:#ff0000; border-radius:4px;"></div>
+        <span style="color:black; font-weight:500;">Triggered (High Confidence)</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:18px; height:18px; background-color:#ff9999; border-radius:4px;"></div>
+        <span style="color:black; font-weight:500;">Negative (Low Confidence)</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+
 # ---------------------------
 # Toggle
 # ---------------------------
-show_only = st.checkbox("Show only Email Trigger rows")
+show_only = st.checkbox("Show only actionable reviews (email triggers)")
 
 # ---------------------------
 # Preview
@@ -219,19 +235,7 @@ cols_to_show = [col for col in [
 styled_df = display_df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
-# Legend
-st.markdown("""
-<div style="display:flex; gap:25px; align-items:center; margin-top:5px;">
-    <div style="display:flex; align-items:center; gap:10px;">
-        <div style="width:18px; height:18px; background-color:#ff0000; border-radius:4px;"></div>
-        <span style="color:black; font-weight:500;">Triggered (High Confidence)</span>
-    </div>
-    <div style="display:flex; align-items:center; gap:10px;">
-        <div style="width:18px; height:18px; background-color:#ff9999; border-radius:4px;"></div>
-        <span style="color:black; font-weight:500;">Negative (Low Confidence)</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+
 
 # ---------------------------
 # Bulk Send
