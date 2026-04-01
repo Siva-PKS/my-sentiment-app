@@ -179,8 +179,13 @@ st.success("Processing complete!")
 total = len(df)
 triggered = len(df[df["Email_Trigger"] == "Yes"])
 
-st.metric("Emails to Send", triggered)
-st.metric("Trigger Rate", f"{(triggered/total)*100:.1f}%")
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric("Emails to Send", triggered)
+
+with col2:
+    st.metric("Trigger Rate", f"{(triggered/total)*100:.1f}%")
 
 # ---------------------------
 # Toggle (NEW)
