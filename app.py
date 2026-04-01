@@ -215,7 +215,10 @@ cols_to_show = [col for col in [
 styled_df = display_df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
-st.caption("🔴 Triggered | 🌸 Negative")
+st.markdown("""
+<span style='color:#ff0000;'>☑️ Triggered</span> &nbsp;&nbsp;
+<span style='color:#ff9999;'>☑️ Negative</span>
+""", unsafe_allow_html=True)
 
 # ---------------------------
 # Bulk Send (NEW)
