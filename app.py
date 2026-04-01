@@ -218,7 +218,7 @@ for idx, row in negative_df.iterrows():
         if use_manual:
             manual_text = st.text_area("Enter Manual Response", key=f"txt_{idx}")
 
-        if st.button(f"Send Email (Row {idx})", key=f"btn_{idx}"):
+        if st.button("Send Email", key=f"btn_{idx}"):
 
             recipient_email = row.get("Email", "")
 
