@@ -216,16 +216,16 @@ styled_df = display_df[cols_to_show].style.apply(highlight_negative, axis=1)
 st.dataframe(styled_df, use_container_width=True)
 
 st.markdown("""
-<div style="display:flex; gap:20px; align-items:center;">
+<div style="display:flex; gap:25px; align-items:center; margin-top:5px;">
 
-    <div style="display:flex; align-items:center; gap:8px;">
-        <div style="width:16px; height:16px; background-color:#ff0000; border-radius:3px;"></div>
-        <span style="color:black;">Triggered</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:18px; height:18px; background-color:#ff0000; border-radius:4px;"></div>
+        <span style="color:black; font-weight:500;">Triggered (High Confidence)</span>
     </div>
 
-    <div style="display:flex; align-items:center; gap:8px;">
-        <div style="width:16px; height:16px; background-color:#ff9999; border-radius:3px;"></div>
-        <span style="color:black;">Negative</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <div style="width:18px; height:18px; background-color:#ff9999; border-radius:4px;"></div>
+        <span style="color:black; font-weight:500;">Negative (Low Confidence)</span>
     </div>
 
 </div>
