@@ -8,7 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import warnings 
-import re 
+import re # Keep re for now, though it's not strictly needed for this specific warning filter
 import time
 from sklearn.metrics import accuracy_score
 
@@ -20,7 +20,10 @@ try:
 except AttributeError:
     pass
 
-warnings.filterwarnings("ignore", category=warnings.FutureWarning, module=re.compile("huggingface_hub\\.file_download"))
+# FIX: Use the string regex pattern for the module argument
+# The 'warnings' module internally compiles this string.
+warnings.filterwarnings("ignore", category=warnings.FutureWarning, module="huggingface_hub\\.file_download")
+
 
 # ---------------------------
 # App Config
@@ -34,7 +37,7 @@ st.title("AI-Driven Sentiment Analysis & Automated Customer Response Platform")
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 587
 SENDER_EMAIL = "spkincident@gmail.com"
-SENDER_PASSWORD = st.secrets["email_password"]
+SENDER_PASSWORD = st.secrets["email_password"] 
 
 # --- Base64 Encoded Bosch Logo (Replace with your actual Base64 string) ---
 # You would get this by converting the SVG content from the URL to base64.
@@ -49,7 +52,7 @@ SENDER_PASSWORD = st.secrets["email_password"]
 # You can find the raw SVG content here: https://upload.wikimedia.org/wikipedia/commons/6/6f/Bosch-logo.svg
 # Then use an online Base64 encoder for SVG or a Python script to convert it.
 # Example: https://base64.guru/converter/encode/image
-BOSCH_LOGO_BASE64_PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTYgMTYwIj48cGF0aCBmaWxsPSIjRjAwIiBkPSJNMCAxNjBoNzcuMjcxVjBoLTEzLjcyNFYxMDYuMzU2SDAuNjQ3VjE2MEgwdmEwLjA2NXYtMC4wNjVoLTYuNTR2MTYuNjQ2SDc3LjI2Okw3Ny4yNzUgMTYwSDg4Ljk5MXYtNS41NjhsMjguMDYxLTI4LjA1OEg1LjQ1M3YxNS41MzdIMTk2VjBoLjc3NXYxNTQuNjQ5aC02LjU0djExLjA0MmMwLjY0NiAwLjY1MS0wLjY0NiAwLjYzNyAwLjY0NiAwLjY1djUuNTY2SDc3LjI3NWMtNi41NCAwLjY0Ni01LjI1MSAwLjY0OS01LjQ1MyAwLjY0OUgwdjcuMjcxYy0xMS4wNDQgMC42NS0xMy43MjYgMC42NS0xNC4zNzIgMC42NUgwc3YtMC42NWgtNi41NTd2LTUuNTY3aC02LjU0MXYtMS4xMDVsLTUuNDUyLTUuNTY2VjExNy43NjlsNTguNjY2LDU4LjY3OUgxNzQuNjEzVjExNy43NTdsNTguNjQ4LDU4LjY4NlYxNjAuNjQ5SDcuMjcyVjBoLTcuMjcxdi01LjU2OEgwLjY0NlYwSDE5Ni42MjJjLTcuMjcxIDcuMjcxLTUuNTY3IDcuMjcxLDUuNTY3IDcuMjcxVjBoLTYuNTQxVjEuMzA2TDcuMjcwIDBjNi41NDctMC42NDYgMTkuNjMzLTAuNjQ1IDMwLjY3NyAwdi0xMS4wNDVoLTcuMjcyVjBIMTMyLjI3NGwtNTguNjY3LTU4LjY3di03LjI3MWgtMjcuNDEydi0yOC41NzZMNDAuMDcgNDAuMDk1VjBoLTI3LjQxNFYwSDE4My41NDNWMkgyNC41MTR2LTcuMjc1aC0xNi42NDlWMmgwLjY0NlYwSDE4My42NDhWMTE2LjY1MVYxNjBINjguNjc4VjBoLTUuNTY5VjEwNi4zNThIMTIuNTI2VjE2MC42NTFINjguNjc4VjBoLTUuNTY5VjExNy43NTdIeS4xNzJMMTY3Ljk2OSAwaC0xMy43MjJWMTU0LjY0OUgxOTZWMEgwLjYzN1YxNjBINHZIMTg4LjQ2M1YwSDc2LjYzNlYxMDYuMzU2SDkuNjE1VjE2MC42NTFINzYuNjM2VjBoLTcuMjcyVjExNy43NzdILjY0NlYyNC41MTJWMTZIMTk2LjYzOFYwSDcuMjcyVjU4LjY3OEwxMDYuMzU3IDBWMEgwLjY0NlYxMDYuMzU2SDExNy43NjJMMTg4LjQ2MyAwVjBINi43MDRWMTYwLjYzOUgwLjY0NlY2Ljc2NlY2Ljc3TDUuNDUzIDI2LjE1MUgyNy42MTZWMTIwLjgySDB2MTcuMjIxVjE2MGg2OS45Njh2LTc3LjI3MUgzMC42NzhWMjQuNTE0SDkuNjE1VjE2MGgzMC42Nzh2LTc3LjI3MUg3MC42MTR2NTguNjcxSDB2NzcuMjcxSDc1LjkyNXYtNTguNjcxVjBoLTcuMjc1VjQzLjU0OUg2LjcwNHYtMTkuMDM1SDMyLjU5NlY1LjQ1NFYwSDAuNjQ2VjBoLTUuNDUzVjBIMjcuNjE2VjBIMTk2VjBoLS4wMThVMEgxMjAuMzQ1VjBINi43MDNWNzcuMjc3VjE2MGg0OC43ODh2LTEwNi4zNkg1LjQ1NFYwSDAuNjQ2VjBoLTUuNDUzVjBIMTk2VjBoLS42NDYVMEgxNzkuOTY4VjBoLTUuNDU0VjBIMjk5LjY0NlYwSDkuNjE1VjBIMTk2VjBoLTcuMjc1VjBoLTcuMjc1VjBoLTYuNTRWMzUuMzQzTDExMi42MTcgMHoiLz48L3N2Zz4=" # Placeholder - replace with actual Base64 SVG
+BOSCH_LOGO_BASE64_PLACEHOLDER = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxOTYgMTYwIj48cGF0aCBmaWxsPSIjRjAwIiBkPSJNMCAxNjBoNzcuMjcxVjBoLTEzLjcyNFYxMDYuMzU2SDBuNjQ3VjE2MEgwdi4wNjV2LS4wNjVoLTYuNTR2MTYuNjQ2SDc3LjI2OUw3Ny4yNzUgMTYwSDg4Ljk5MXYtNS41NjhsMjguMDYxLTI4LjA1OEg1LjQ1M3YxNS41MzdIMTk2VjBoLjc3NXYxNTQuNjQ5aC02LjU0djExLjA0MmMuNjQ2LjY1MS0uNjQ2LjYzNy42NDYuNjV2NS41NjZINzcuMjc1Yy02LjU0LjY0Ni01LjI1MS42NDktNS40NTMuNjQ5SDB2Ny4yNzFjLTExLjA0NC42NS0xMy43MjYuNjUtMTQuMzcyLjY1SDBzdi0uNjVoLTYuNTU3di01LjU2N2gtNi41NDF2LTEuMTA1bC01LjQ1Mi01LjU2NlYxMTcuNzY5bDU4LjY2Niw1OC42NzlIMTc0LjYxM1YxMTcuNzU3bDU4LjY0OCw1OC42ODZWMTYwLjY0OUg3LjI3MlYwSDcuMjcxdi01LjU2OEgwLjY0NlYwSDE5Ni42MjJjLTcuMjcxNy4yNzEtNS41NjcgNy4yNzE1LjU2NyA3LjI3MVYwSDE5MC4wNzRWMi4xMzcxNzU3VjAuMjg0MjEwNzUxNWMtLjY0Ni0uNjQ2LTEuNTM1LTEuNTM1LTIuNjA4LTIuNjA4aC02LjU0VjBINzEuOTU5VjguNjk5bDE4My42NDggMTg1LjA1M1YwSDcuMjcyVjU4LjY3OEwxMDYuMzU3IDBWMEgwLjY0NlYxMDYuMzU2SDExNy43NjJMMTg4LjQ2MyAwVjBINi43MDRWMTYwLjYzOUgwLjY0NlY2Ljc2NlY2Ljc3TDUuNDUzIDI2LjE1MUgyNy42MTZWMTIwLjgySDB2MTcuMjIxVjE2MGg2OS45Njh2LTc3LjI3MUgzMC42NzhWMjQuNTE0SDkuNjE1VjE2MGgzMC42Nzh2LTc3LjI3MUg3MC42MTR2NTguNjcxSDB2NzcuMjcxSDc1LjkyNXYtNTguNjcxVjBoLTcuMjc1VjQzLjU0OUg2LjcwNHYtMTkuMDM1SDMyLjU5NlM1LjQ1NFYwSDAuNjQ2VjBoLTUuNDUzVjBIMjcuNjE2VjBIMTk2VjBoLS4wMThVMEgxMjAuMzQ1VjBINi43MDNWNzcuMjc3VjE2MGg0OC43ODh2LTEwNi4zNkg1LjQ1NFYwSDAuNjQ2VjBoLTUuNDUzVjBIMTk2VjBoLS42NDYVMEgxNzkuOTY4VjBoLTUuNDU0VjBIMjk5LjY0NlYwSDkuNjE1VjBIMTk2VjBoLTcuMjc1VjBoLTcuMjc1VjBoLTYuNTRWMzUuMzQzTDExMi42MTcgMHoiLz48L3N2Zz4=" # Placeholder - replace with actual Base64 SVG
 BOSCH_LOGO_SRC = BOSCH_LOGO_BASE64_PLACEHOLDER
 
 
@@ -261,14 +264,14 @@ if not st.session_state.processed:
             responses.append(generate_response(sentiments[i], row["Review_text"]))
             times.append(time.time() - start)
 
-        df["Sentiment"] = sentiments
-        df["Confidence"] = confidences
-        df["Response"] = responses
-        df["Processing_Time_sec"] = times
-        df["Email_Status"] = "Pending"
+    df["Sentiment"] = sentiments
+    df["Confidence"] = confidences
+    df["Response"] = responses
+    df["Processing_Time_sec"] = times
+    df["Email_Status"] = "Pending"
 
-        st.session_state.df_processed = df.copy()
-        st.session_state.processed = True
+    st.session_state.df_processed = df.copy()
+    st.session_state.processed = True
 else:
     df = st.session_state.df_processed.copy()
 
