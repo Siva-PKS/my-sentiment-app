@@ -321,6 +321,8 @@ if st.button("🚀 Send All Emails"):
 
 # ... (previous code) ...
 
+# ... (previous code) ...
+
 # ---------------------------
 # Trigger Email Section
 # ---------------------------
@@ -343,9 +345,9 @@ for idx, row in negative_df.iterrows():
         # Add a visual separator
         st.markdown("---") 
 
-        st.markdown(f"**Response to be sent:**")
-        # Display the auto-generated response in a disabled text area or just text
-        st.text_area("Auto-generated Response", value=row['Response'], height=100, disabled=True, key=f"auto_resp_{idx}")
+        st.markdown(f"**Auto-generated Response:**")
+        # Display the auto-generated response as normal text
+        st.write(row['Response']) 
 
         st.markdown("---")
 
@@ -387,7 +389,6 @@ for idx, row in negative_df.iterrows():
                         else:
                             st.error(f"Failed to send email for {uid}.")
 
-# ... (rest of the code) ...
 
 # ---------------------------
 # Metrics Summary
