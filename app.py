@@ -307,17 +307,20 @@ st.dataframe(styled_df, use_container_width=True)
 # ---------------------------
 # Bulk Send
 # ---------------------------
-if st.button("🚀 Send All Emails"):
-    for idx, row in df[df["Email_Trigger"] == "Yes"].iterrows():
-        if row["Email_Status"] == "Sent":
-            continue
+        if st.button("Send Email", key=f"btn_{idx}", disabled=disabled_flag):
 
-        body = build_email_body(row, row["Response"])
+            recipient_email = row.get("Email", "")
 
-        if send_email(row.get("Email", ""), "Customer Support", body):
-            df.at[idx, "Email_Status"] = "Sent"
+            # FIXED indentation (aligned properly)
+            body = build_email_body(row, final_response)
 
-    st.session_state.df_processed = df.copy()
+            if recipient_email:
+                if send_email(recipient_email, "Customer Support", body):
+                    df.at[idx, "Email_Status"] = "Sent"
+                    st.session_state.df_processed = df.copy()
+                    st.success("Email sent")
+            else:
+                st.warning("No Email found.")
 
 # ---------------------------
 # Trigger Email Section
