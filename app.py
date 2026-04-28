@@ -143,6 +143,72 @@ def generate_response(sentiment, review):
     reply = tokenizer.decode(output[0], skip_special_tokens=True)
     return f"Thank you for your review. We will look into the issue. {reply}"
 
+
+def build_email_body(row, response_text):
+    return f"""
+    <html>
+    <body style="font-family: Arial, sans-serif; background-color:#f6f6f6; padding:20px;">
+        
+        <div style="max-width:600px; margin:auto; background:white; padding:20px; border-radius:8px;">
+
+            <!-- Header with Logo -->
+            <div style="text-align:center; border-bottom:1px solid #ddd; padding-bottom:10px;">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/6/6f/Bosch-logo.svg" 
+                     alt="Bosch Logo" width="120"/>
+                <h2 style="color:#d50000; margin-top:10px;">Customer Support</h2>
+            </div>
+
+            <p>Dear Customer,</p>
+
+            <p>Thank you for your feedback. Please find our response below.</p>
+
+            <!-- Ticket Info -->
+            <div style="background:#f2f2f2; padding:10px; border-radius:5px;">
+                <b>Ticket Number:</b> {row.get('Unique_ID', 'N/A')}
+            </div>
+
+            <br>
+
+            <!-- Review Details -->
+            <h4 style="color:#333;">Review Details:</h4>
+            <p>
+            <b>ID:</b> {row.get('Unique_ID', 'N/A')}<br>
+            <b>Category:</b> {row.get('Category', 'N/A')}<br>
+            <b>Date:</b> {row.get('Date', 'N/A')}
+            </p>
+
+            <p><b>Review:</b><br>
+            {row.get('Review_text', '')}</p>
+
+            <!-- Response -->
+            <h4 style="color:#333;">Our Response:</h4>
+            <p>{response_text}</p>
+
+            <br>
+
+            <!-- Support Link -->
+            <p>
+                Need more help?  
+                <a href="https://www.bosch.com/contact/" target="_blank">
+                    Contact Support
+                </a>
+            </p>
+
+            <br>
+
+            <!-- Footer -->
+            <div style="border-top:1px solid #ddd; padding-top:10px; font-size:12px; color:#777;">
+                Best Regards,<br>
+                Bosch Customer Support Team<br>
+                contact@support.com
+            </div>
+
+        </div>
+    </body>
+    </html>
+    """
+    
+
 # ---------------------------
 # Processing
 # ---------------------------
@@ -246,7 +312,7 @@ if st.button("🚀 Send All Emails"):
         if row["Email_Status"] == "Sent":
             continue
 
-        body = f"<p>{row['Review_text']}</p><p>{row['Response']}</p>"
+        body = build_email_body(row, row["Response"])
 
         if send_email(row.get("Email", ""), "Customer Support", body):
             df.at[idx, "Email_Status"] = "Sent"
@@ -286,7 +352,7 @@ for idx, row in negative_df.iterrows():
 
             recipient_email = row.get("Email", "")
 
-            body = f"<p>{row['Review_text']}</p><p>{final_response}</p>"
+           body = build_email_body(row, final_response)
 
             if recipient_email:
                 if send_email(recipient_email, "Customer Support", body):
