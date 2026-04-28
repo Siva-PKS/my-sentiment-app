@@ -206,10 +206,34 @@ col1, col2 = st.columns(2)
 col1.metric("Emails to Send", len(df[df["Email_Trigger"]=="Yes"]))
 col2.metric("Trigger Rate", f"{(len(df[df['Email_Trigger']=='Yes'])/len(df))*100:.1f}%")
 
+show_only = st.checkbox("Show only actionable reviews (email triggers)")
+
+display_df = df[df["Email_Trigger"] == "Yes"] if show_only else df.copy()
+
 # ---------------------------
 # Preview
 # ---------------------------
 st.subheader("Preview")
+display_df = df.copy()
+
+def highlight_rows(row):
+    if row["Email_Trigger"] == "Yes":
+        return ['background-color: #ffcccc'] * len(row)   # 🔴 High priority
+    elif row["Sentiment"] == "Negative":
+        return ['background-color: #ffe6e6'] * len(row)   # 🩷 Negative
+    else:
+        return [''] * len(row)
+
+cols_to_show = [col for col in [
+    "Unique_ID", "Date", "Category", "Review_text",
+    "Sentiment", "Confidence", "Response",
+    "Email_Trigger", "Email_Status"
+] if col in display_df.columns]
+
+styled_df = display_df[cols_to_show].style.apply(highlight_rows, axis=1)
+
+# ✅ This ensures color rendering works
+st.write(styled_df.to_html(), unsafe_allow_html=True)
 st.dataframe(df)
 
 # ---------------------------
