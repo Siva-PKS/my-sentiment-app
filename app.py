@@ -319,6 +319,8 @@ if st.button("🚀 Send All Emails"):
 
     st.session_state.df_processed = df.copy()
 
+# ... (previous code) ...
+
 # ---------------------------
 # Trigger Email Section
 # ---------------------------
@@ -328,17 +330,30 @@ negative_df = df[df["Email_Trigger"] == "Yes"].reset_index(drop=True)
 for idx, row in negative_df.iterrows():
     uid = row.get('Unique_ID', f'Row {idx+1}')
 
-    with st.expander(f"Email for Review #{idx+1} - {uid}"):
+    # Use a unique key for the expander to prevent issues if IDs are not unique
+    expander_key = f"expander_{uid}_{idx}" 
 
+    with st.expander(f"Email for Review #{idx+1} - {uid}", expanded=False, key=expander_key):
+        st.markdown(f"**ID:** {row.get('Unique_ID', 'N/A')}")
+        st.markdown(f"**Date:** {row.get('Date', 'N/A')}")
+        st.markdown(f"**Category:** {row.get('Category', 'N/A')}")
         st.markdown(f"**Review:** {row['Review_text']}")
-        st.progress(row["Confidence"])
-        st.markdown(f"**Response to be sent:** {row['Response']}")
+        st.markdown(f"**Sentiment:** {row['Sentiment']} (Confidence: {row['Confidence']:.2f})")
+        
+        # Add a visual separator
+        st.markdown("---") 
 
-        use_manual = st.checkbox("Use Manual Response", key=f"chk_{idx}")
+        st.markdown(f"**Response to be sent:**")
+        # Display the auto-generated response in a disabled text area or just text
+        st.text_area("Auto-generated Response", value=row['Response'], height=100, disabled=True, key=f"auto_resp_{idx}")
+
+        st.markdown("---")
+
+        use_manual = st.checkbox("Use Manual Response", key=f"chk_manual_{idx}") # Unique key
 
         manual_text = ""
         if use_manual:
-            manual_text = st.text_area("Enter Manual Response", key=f"txt_{idx}")
+            manual_text = st.text_area("Enter Manual Response Here", height=100, key=f"txt_manual_{idx}") # Unique key
 
         final_response = (
             manual_text.strip()
@@ -346,20 +361,33 @@ for idx, row in negative_df.iterrows():
             else row["Response"]
         )
 
-        disabled_flag = row["Email_Status"] == "Sent"
+        disabled_flag = (row["Email_Status"] == "Sent")
 
-        if st.button("Send Email", key=f"btn_{idx}", disabled=disabled_flag):
-            recipient_email = row.get("Email", "")
-            # This line needs to be indented
-            body = build_email_body(row, final_response)
+        if disabled_flag:
+            st.info(f"Email for {uid} has already been sent.")
+            st.button("Email Sent (Disabled)", key=f"btn_sent_{idx}", disabled=True)
+        else:
+            if st.button("Send Email", key=f"btn_send_{idx}"): # Unique key
+                recipient_email = row.get("Email", "")
+                
+                if not recipient_email:
+                    st.warning(f"No recipient email found for review {uid}. Cannot send.")
+                else:
+                    email_subject = f"Response to your feedback (Ticket: {uid})"
+                    body = build_email_body(row, final_response)
 
-            if recipient_email:
-                if send_email(recipient_email, "Customer Support", body):
-                    df.at[idx, "Email_Status"] = "Sent"
-                    st.session_state.df_processed = df.copy()
-                    st.success("Email sent")
-            else:
-                st.warning("No Email found.")
+                    with st.spinner("Sending email..."):
+                        if send_email(recipient_email, email_subject, body):
+                            # Update the original DataFrame in session state
+                            original_df_index = df[df["Unique_ID"] == uid].index[0]
+                            df.at[original_df_index, "Email_Status"] = "Sent"
+                            st.session_state.df_processed = df.copy() # Update session state
+                            st.success(f"Email for {uid} sent to {recipient_email}!")
+                            st.experimental_rerun() # Rerun to update the button state
+                        else:
+                            st.error(f"Failed to send email for {uid}.")
+
+# ... (rest of the code) ...
 
 # ---------------------------
 # Metrics Summary
