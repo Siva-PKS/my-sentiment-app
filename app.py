@@ -7,8 +7,7 @@ import os
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-import warnings
-from warnings import FutureWarning # Import FutureWarning specifically for the filter
+import warnings # Keep this general import
 import time
 from sklearn.metrics import accuracy_score
 
@@ -20,8 +19,8 @@ try:
 except AttributeError:
     pass
 
-# FIX: Pass the FutureWarning class directly, not its string name
-warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
+# FIX: Pass the FutureWarning class directly from the warnings module, no separate import needed
+warnings.filterwarnings("ignore", category=warnings.FutureWarning, module="huggingface_hub.file_download")
 
 
 # ---------------------------
