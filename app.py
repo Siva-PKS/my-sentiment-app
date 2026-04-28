@@ -10,6 +10,7 @@ from email.mime.multipart import MIMEMultipart
 import warnings # Keep this general import
 import time
 from sklearn.metrics import accuracy_score
+import re # Add this import at the top
 
 # ---------------------------
 # Fix torch Streamlit bug
