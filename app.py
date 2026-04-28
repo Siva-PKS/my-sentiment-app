@@ -307,7 +307,7 @@ st.dataframe(styled_df, use_container_width=True)
 # ---------------------------
 # Bulk Send
 # ---------------------------
-if st.button("🚀 Send All Emails"):
+if st.button("Send All Emails"):
     for idx, row in df[df["Email_Trigger"] == "Yes"].iterrows():
         if row["Email_Status"] == "Sent":
             continue
