@@ -349,10 +349,9 @@ for idx, row in negative_df.iterrows():
         disabled_flag = row["Email_Status"] == "Sent"
 
         if st.button("Send Email", key=f"btn_{idx}", disabled=disabled_flag):
-
             recipient_email = row.get("Email", "")
-
-           body = build_email_body(row, final_response)
+            # This line needs to be indented
+            body = build_email_body(row, final_response)
 
             if recipient_email:
                 if send_email(recipient_email, "Customer Support", body):
