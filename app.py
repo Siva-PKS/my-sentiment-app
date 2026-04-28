@@ -378,16 +378,18 @@ for idx, row in negative_df.iterrows():
                     email_subject = f"Response to your feedback (Ticket: {uid})"
                     body = build_email_body(row, final_response)
 
-                    with st.spinner("Sending email..."):
+                      with st.spinner("Sending email..."):
                         if send_email(recipient_email, email_subject, body):
                             # Update the original DataFrame in session state
                             original_df_index = df[df["Unique_ID"] == uid].index[0]
                             df.at[original_df_index, "Email_Status"] = "Sent"
                             st.session_state.df_processed = df.copy() # Update session state
                             st.success(f"Email for {uid} sent to {recipient_email}!")
-                            st.experimental_rerun() # Rerun to update the button state
+                            st.rerun() # <<< CHANGED THIS LINE
                         else:
                             st.error(f"Failed to send email for {uid}.")
+
+
 
 
 # ---------------------------
