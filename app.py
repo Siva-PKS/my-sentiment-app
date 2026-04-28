@@ -8,6 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import warnings
+from warnings import FutureWarning # Import FutureWarning specifically for the filter
 import time
 from sklearn.metrics import accuracy_score
 
@@ -19,7 +20,9 @@ try:
 except AttributeError:
     pass
 
-warnings.filterwarnings("ignore", category="FutureWarning", module="huggingface_hub.file_download")
+# FIX: Pass the FutureWarning class directly, not its string name
+warnings.filterwarnings("ignore", category=FutureWarning, module="huggingface_hub.file_download")
+
 
 # ---------------------------
 # App Config
@@ -282,10 +285,11 @@ st.success("Processing complete! Reviews are ready for analysis and response.")
 # ---------------------------
 # Overall Metrics
 # ---------------------------
+st.subheader("Overview Metrics")
 total_reviews = len(df)
 triggered_emails = len(df[df["Email_Trigger"] == "Yes"])
 
-st.subheader("Overview Metrics")
+
 col1, col2, col3 = st.columns(3)
 
 with col1:
