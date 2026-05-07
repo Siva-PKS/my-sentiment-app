@@ -21,7 +21,7 @@ Last updated: **2026-05-07 04:03:34.747 UTC**
 
 ## Top Referrers (last 14 days)
 <!-- REFERRERS:START -->
-Last updated: **2026-05-06 04:09:10.898 UTC**
+Last updated: **2026-05-07 04:08:35.180 UTC**
 
 - (no data in the last 14 days)
 <!-- REFERRERS:END -->
